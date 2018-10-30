@@ -15,7 +15,7 @@
 
 (require thrift/idl/enumeration)
 
-;; ---------- Implementation
+;; ---------- Implementation (Types)
 
 (define-enumeration message-type 1
   (call
@@ -40,22 +40,4 @@
   (message
    type) #:transparent)
 
-(define-enumeration field-type 0
-  (stop
-   boolean-true
-   boolean-false
-   byte
-   int16
-   int32
-   int64
-   double
-   binary
-   list
-   set
-   map
-   structure))
-
-(struct field-value
-  (id
-   type
-   value) #:transparent)
+(define field-stop-value 0)

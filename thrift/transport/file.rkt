@@ -7,14 +7,14 @@
 
 (provide
  
- open-file-transport)
+ open-file-transport
+
+ close-file-transport)
 
 ;; ---------- Requirements
 
 (require thrift/transport/common
          thrift/private/logging)
-
-;; ---------- Internal types
 
 ;; ---------- Implementation
 
@@ -47,11 +47,7 @@
                                   (file-position in-port)))
                 #f)]))
 
-(define (close-transport transport)
+(define (close-file-transport transport)
   (log-thrift-info "closing thrift file: ~a" (transport-source transport))
   (close-input-port (transport-in-port transport))
   (close-output-port (transport-out-port transport)))
-
-;; ---------- Internal procedures
-
-;; ---------- Internal tests

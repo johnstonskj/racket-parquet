@@ -1,6 +1,6 @@
 #lang racket/base
 ;;
-;; thrift - transport.
+;; thrift - transport/common.
 ;;   Support for Thrift encoding
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
@@ -9,11 +9,7 @@
  
  (struct-out transport))
 
-;; ---------- Requirements
-
-;; ---------- Internal types
-
-;; ---------- Implementation
+;; ---------- Implementation (Types)
 
 (struct transport
   (source
@@ -22,7 +18,3 @@
    size
    position
    options) #:transparent)
-  
-;; ---------- Internal procedures
-
-;; ---------- Internal tests

@@ -10,18 +10,22 @@
 
 ;; ---------- Requirements
 
-(require thrift/idl/enumeration
-         thrift/idl/structure)
+(require thrift
+         thrift/idl/enumeration
+         thrift/idl/struct
+         thrift/protocol/decoding)
 
 ;; ---------- Implementation
+
+(define module-name 'parquet)
 
 (define magic-number #"PAR1")
 
 (define-enumeration
-  type 0
+  parquet-type 0
   (boolean
    int32
-   int64
+   type-int64
    int96 ; deprecated
    float
    double
@@ -97,143 +101,151 @@
    descending))
 
 
-(define-structure decimal
-  ([1 scale int32]
-   [2 precision int32]))
+(define-thrift-struct decimal-type
+  ([1 scale required type-int32]
+   [2 precision required type-int32]))
 
 
-(define-structure sorting-column
-  ([1 column-index int32]
-   [2 descending? bool]
-   [3 nulls-first? bool]))
+(define-thrift-struct sorting-column
+  ([1 column-index required type-int32]
+   [2 descending? required type-bool]
+   [3 nulls-first? required type-bool]))
 
-(define-structure page-encoding-stats
- ([1 page-type page-type?]
-  [2 encoding encoding?]
-  [3 count int32]))
+(define-thrift-struct page-encoding-stats
+ ([1 page-type required page-type]
+  [2 encoding required encoding]
+  [3 count required type-int32]))
 
-(define-structure statistics
-  ([1 max binary]
-   [2 min binary]
-   [3 null-count int64]
-   [4 distinct-count int64]
-   [5 max-value binary]
-   [6 min-value binary]))
+(define-thrift-struct statistics
+  ([1 max optional type-binary]
+   [2 min optional type-binary]
+   [3 null-count optional type-int64]
+   [4 distinct-count optional type-int64]
+   [5 max-value optional type-binary]
+   [6 min-value optional type-binary]))
 
-(define-structure file-metadata
-  ([1 version int32]
-   [2 schema list]
-   [3 num-rows int64]
-   [4 row-groups list]
-   [5 key-value-metadata list]
-   [6 created-by string]
-   [7 column-orders list]))
+(define-thrift-struct file-metadata
+  ([1 version required type-int32]
+   [2 schema required list-of schema-element]
+   [3 num-rows required type-int64]
+   [4 row-groups required list-of row-group]
+   [5 key-value-metadata optional list-of key-value]
+   [6 created-by optional type-string]
+   [7 column-orders optional list-of column-order]))
 
-(define-structure schema-element
-  ([1 type type?]
-   [2 type-length int32]
-   [3 repetition-type field-repetition-type?]
-   [4 name string?]
-   [5 num-children int32]
-   [6 converted-type converted-type?]
-   [7 scale int32]
-   [8 precision int32]
-   [9 field-id int32]
-   [10 logical-type logical-type]))
+(define-thrift-struct logical-type ())
 
-(define-structure row-group
-  ([1 columns list]
-   [2 total-byte-size int64]
-   [3 num-rows int64]
-   [4 sorting-columns list]))
+(define-thrift-struct schema-element
+  ([1 type optional parquet-type]
+   [2 type-length optional type-int32]
+   [3 repetition-type optional field-repetition-type]
+   [4 name required type-string]
+   [5 num-children optional type-int32]
+   [6 converted-type optional converted-type]
+   [7 scale optional type-int32]
+   [8 precision optional type-int32]
+   [9 field-id optional type-int32]
+   [10 logical-type optional logical-type]))
 
-(define-structure column-chunk
-  ([1 file-path string]
-   [2 file-offset int64]
-   [3 metadata column-metadata?]
-   [4 offset-index-offset int64]
-   [5 offset-index-length int32]
-   [6 column-index-offset int64]
-   [7 column-index-length int32]))
+(define-thrift-struct row-group
+  ([1 columns required list-of column-chunk]
+   [2 total-byte-size required type-int64]
+   [3 num-rows required type-int64]
+   [4 sorting-columns optional list-of sorting-column]))
 
-(define-structure page-location
-  ([1 offset int64]
-   [2 compressed-page-size int32]
-   [3 first-row-index int64]))
+(define-thrift-struct column-chunk
+  ([1 file-path optional type-string]
+   [2 file-offset required type-int64]
+   [3 metadata optional column-metadata]
+   [4 offset-index-offset optional type-int64]
+   [5 offset-index-length optional type-int32]
+   [6 column-index-offset optional type-int64]
+   [7 column-index-length optional type-int32]))
 
-(define-structure offset-index
-  ([1 page-locations list]))
+(define-thrift-struct page-location
+  ([1 offset required type-int64]
+   [2 compressed-page-size required type-int32]
+   [3 first-row-index required type-int64]))
 
-(define-structure column-order ())
+(define-thrift-struct offset-index
+  ([1 page-locations required list-of page-location]))
 
-(define-structure column-index
-  ([1 null-pages? list]
-   [2 min-values list]
-   [3 max-values list]
-   [4 boundary-order boundary-order?]
-   [5 null-counts list]))
+(define-thrift-struct column-order ())
 
-(define-structure key-value
-  ([1 key string]
-   [2 value string]))
+(define-thrift-struct column-index
+  ([1 null-pages? required list-of type-bool]
+   [2 min-values required list-of type-binary]
+   [3 max-values required list-of type-binary]
+   [4 boundary-order required boundary-order]
+   [5 null-counts optional list-of type-int64]))
 
-(define-structure column-metadata
-  ([1 type type?]
-   [2 encodings listof]
-   [3 path-in-schema listof]
-   [4 codec compression-codec?]
-   [5 num-values int64]
-   [6 total-uncompressed-size int64]
-   [7 total-compressed-size int64]
-   [8 key-value-metadata list]
-   [8 data-page-offset int64]
-   [9 index-page-offset int64]
-   [10 dictionary-page-offset int64]
-   [11 statistics statistics?]
-   [12 encoding-stats list]
-   [13 bloom-filter-offset int64]))
+(define-thrift-struct key-value
+  ([1 key required type-string]
+   [2 value optional type-string]))
 
-(struct data-page-header
-  (num-values ; i32
-   definition-level-encoding ; encoding
-   repetition-level-encoding ; encoding
-   statistics ; optional statistics
-   ))
+(define-thrift-struct column-metadata
+  ([1 type required parquet-type]
+   [2 encodings required list-of encoding]
+   [3 path-in-schema required list-of type-string]
+   [4 codec required compression-codec]
+   [5 num-values required type-int64]
+   [6 total-uncompressed-size required type-int64]
+   [7 total-compressed-size required type-int64]
+   [8 key-value-metadata optional list-of key-value]
+   [8 data-page-offset required type-int64]
+   [9 index-page-offset optional type-int64]
+   [10 dictionary-page-offset optional type-int64]
+   [11 statistics optional statistics]
+   [12 encoding-stats optional list-of page-encoding-stats]
+   [13 bloom-filter-offset optional type-int64]))
 
-(struct index-page-header ())
+(define-thrift-struct data-page-header
+  ([1 num-values required type-int32]
+   [2 encoding required encoding]
+   [3 definition-level-encoding required encoding]
+   [4 repetition-level-encoding required encoding]
+   [5 statistics optional statistics]))
 
-(struct dictionary-page-header
-  (num-values ; required i32
-   encoding ; required encoding?
-   sorted? ; optional boolean
-   ))
+(define-thrift-struct index-page-header ())
 
-(struct data-page-header-v2
-  (num-value ; i32
-   num-nulls ; i32
-   num-rows ; i32
-   encoding
-   definition_levels_byte_length ; i32
-   repetition_levels_byte_length ; i32
-   compressed?
-   statistics))
+(define-thrift-struct dictionary-page-header
+  ([1 num-values required type-int32]
+   [2 encoding required encoding]
+   [3 sorted? optional type-bool]))
 
-(struct bloom-filter-page-header
-  (num-bytes
-   algorithm
-   hash))
+(define-thrift-struct data-page-header-v2
+  ([1 num-value required type-int32]
+   [2 num-nulls required type-int32]
+   [3 num-rows required type-int32]
+   [4 encoding required encoding]
+   [5 definition_levels_byte_length required type-int32]
+   [6 repetition_levels_byte_length required type-int32]
+   [7 compressed? optional type-bool]
+   [8 statistics optional statistics]))
 
-(struct page-header
- (type ; page-type?
-  uncompressed-page-size
-  compressed-page-size
-  crc
-  data-page-header
-  index-page-header
-  dictionary-page-header
-  data-page-header-v2
-  bloom-filter-page-header))
+(define-thrift-struct split-block-algorithm ())
+
+(define-thrift-struct bloom-filter-algorithm
+  ([1 BLOCK split-block-algorithm]))
+
+(define-thrift-struct murmur-3 ())
+
+(define-thrift-struct bloom-filter-hash
+  ([1 MURMUR3 murmur-3]))
+
+(define-thrift-struct bloom-filter-page-header
+  ([1 num-bytes required type-int32]
+   [2 algorithm required bloom-filter-algorithm]
+   [3 hash required bloom-filter-hash]))
+
+(define-thrift-struct page-header
+ ([1 type required page-type]
+  [2 uncompressed-page-size required type-int32]
+  [3 compressed-page-size required type-int32]
+  [4 crc optional type-int32]
+  [5 data-page-header optional data-page-header]
+  [6 index-page-header optional index-page-header]
+  [7 dictionary-page-header optional dictionary-page-header]
+  [8 data-page-header-v2 optional data-page-header-v2]
+  [9 bloom-filter-page-header optional bloom-filter-page-header]))
   
-;; ---------- Internal procedures
-
-;; ---------- Internal tests

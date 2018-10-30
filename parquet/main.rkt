@@ -5,32 +5,11 @@
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
 
-;; Racket Style Guide: http://docs.racket-lang.org/style/index.html
-
-(require racket/contract)
+(require parquet/private/file
+         parquet/private/format)
 
 (provide
- (contract-out))
-
-;; ---------- Requirements
-
-(require "private/parquet.rkt")
-
-;; ---------- Internal types
-
-;; ---------- Implementation
-
-;; ---------- Internal procedures
-
-;; ---------- Internal tests
+ (all-from-out parquet/private/file)
+ (all-from-out parquet/private/format))
 
 
-(module+ test
-  (require rackunit)
-  ;; only use for internal tests, use check- functions 
-  (check-true "dummy first test" #f))
-
-
-(module+ main
-  ;; Main entry point, executed when run with the `racket` executable or DrRacket.
-  )

@@ -1,6 +1,6 @@
 #lang racket/base
 ;;
-;; thrift - protocol/common.
+;; thrift - protocol/plain.
 ;;   Support for Thrift encoding
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
@@ -14,8 +14,6 @@
 
 (require thrift/protocol/common
          thrift/transport/common)
-
-;; ---------- Internal types/values
 
 ;; ---------- Implementation
 
@@ -50,6 +48,4 @@
 (define (read-plain-integer in width-in-bytes)
   (define bs (read-bytes width-in-bytes in))
   (integer-bytes->integer bs #t #f 0 width-in-bytes))
-
-;; ---------- Internal tests
 

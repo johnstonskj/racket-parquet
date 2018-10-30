@@ -1,6 +1,6 @@
 #lang racket/base
 ;;
-;; thrift - enumeration.
+;; thrift - idl/enumeration.
 ;;   Support for Thrift encoding
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
@@ -10,7 +10,8 @@
 
 ;; ---------- Requirements
 
-(require (for-syntax
+(require thrift/protocol/common
+         (for-syntax
           racket/base
           racket/list
           racket/sequence
@@ -29,9 +30,12 @@
           (for/and ([an-id (syntax->list #'(enum-id ...))])
             (identifier? an-id)))
      (with-syntax ([pred-id (format-id #'id "~a?" #'id)]
+                   [decode-id (format-id #'id "~a/decode" #'id)]
                    [name-id (format-id #'id "integer->~a" #'id)]
                    [names-id (format-id #'id "~a/names" #'id)])
        #`(begin
+           (define (decode-id decoder)
+             (decoder-int32 decoder))
            #,@(let* ([first-integer (syntax->datum #'start)]
                      [enum-list (syntax->list #'(enum-id ...))]
                      [integers (sequence->list (in-range first-integer (add1 (length enum-list))))]
@@ -75,16 +79,17 @@
 
 ;; ---------- Internal tests
 
-(module+ test 
-  (define-enumeration my-enum (A B C))
-  (my-enum? -1)
-  (my-enum? 0)
-  (my-enum? 1)
-  (my-enum? 2)
-  (my-enum? 3)
-  (my-enum? 4)
-  my-enum-A
-  my-enum-B
-  my-enum-C
-  (integer->my-enum 2)
-  my-enum/names)
+;(module+ test
+;  (require thrift/protocol/common)
+;  (define-enumeration my-enum (A B C))
+;  (my-enum? -1)
+;  (my-enum? 0)
+;  (my-enum? 1)
+;  (my-enum? 2)
+;  (my-enum? 3)
+;  (my-enum? 4)
+;  my-enum-A
+;  my-enum-B
+;  my-enum-C
+;  (integer->my-enum 2)
+;  my-enum/names)
