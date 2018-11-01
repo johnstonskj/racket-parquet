@@ -1,6 +1,6 @@
 #lang racket/base
 ;;
-;; parquet - parquet.
+;; parquet - file.
 ;;   Read/Write Apache Parquet format files
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
@@ -124,11 +124,11 @@
                     (schema-element-name element)
                     (if (equal? (schema-element-type element) 'no-value)
                         'no-value
-                        (schema-element-type element))
+                        (parquet-type->symbol (schema-element-type element)))
                     (schema-element-type-length element)
                     (if (equal? (schema-element-repetition-type element) 'no-value)
                         'no-value
-                        (schema-element-repetition-type element))
+                        (field-repetition-type->symbol (schema-element-repetition-type element)))
                     (schema-element-num-children element)
                     (schema-element-converted-type element)
                     ))
@@ -151,8 +151,9 @@
                                  (column-metadata-path-in-schema (column-chunk-metadata column))
                                  "; ")))
              (displayln (format "          type=~a,"
-                                (column-metadata-type
-                                 (column-chunk-metadata column))))
+                                (parquet-type->symbol
+                                 (column-metadata-type
+                                  (column-chunk-metadata column)))))
              (displayln (format "          encodings=~a, "
                                 (string-join
                                  (for/list ([encoding (column-metadata-encodings
@@ -160,8 +161,9 @@
                                    (symbol->string (encoding->symbol encoding)))
                                  "; ")))
              (displayln (format "          compression=~a"
-                                (column-metadata-codec
-                                 (column-chunk-metadata column))))
+                                (compression-codec->symbol
+                                 (column-metadata-codec
+                                  (column-chunk-metadata column)))))
              (displayln (format "          values=~a, "
                                 (column-metadata-num-values (column-chunk-metadata column))))
              (displayln (format "          uncompressed-size=~a, "

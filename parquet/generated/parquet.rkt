@@ -639,327 +639,93 @@
 
 (define-namespace-anchor anchor)
 (define this-namespace (namespace-anchor->namespace anchor))
-(for ([index (range (vector-length page-header/schema))])
-  (define field (vector-ref page-header/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! page-header/schema index new-field)))
-(define page-header/reverse-schema
-  (for/hash ([field page-header/schema] [position (range (vector-length page-header/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
 
-(for ([index (range (vector-length bloom-filter-page-header/schema))])
-  (define field (vector-ref bloom-filter-page-header/schema index))
+(define (fixup-schema schema)
+(for ([index (range (vector-length schema))])
+  (define field (vector-ref schema index))
   (when (symbol? (thrift-field-major-type field))
     (define new-field
       (struct-copy thrift-field
                    field
                    [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! bloom-filter-page-header/schema index new-field)))
-(define bloom-filter-page-header/reverse-schema
-  (for/hash ([field bloom-filter-page-header/schema] [position (range (vector-length bloom-filter-page-header/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+    (vector-set! schema index new-field))))
 
-(for ([index (range (vector-length bloom-filter-hash/schema))])
-  (define field (vector-ref bloom-filter-hash/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! bloom-filter-hash/schema index new-field)))
-(define bloom-filter-hash/reverse-schema
-  (for/hash ([field bloom-filter-hash/schema] [position (range (vector-length bloom-filter-hash/schema))])
+(define (make-reverse-schema schema)
+  (for/hash ([field schema] [position (range (vector-length schema))])
     (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+    (values (thrift-field-id field) field)))
 
-(for ([index (range (vector-length murmur-3/schema))])
-  (define field (vector-ref murmur-3/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! murmur-3/schema index new-field)))
-(define murmur-3/reverse-schema
-  (for/hash ([field murmur-3/schema] [position (range (vector-length murmur-3/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema page-header/schema)
+(define page-header/reverse-schema (make-reverse-schema page-header/schema))
 
-(for ([index (range (vector-length bloom-filter-algorithm/schema))])
-  (define field (vector-ref bloom-filter-algorithm/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! bloom-filter-algorithm/schema index new-field)))
-(define bloom-filter-algorithm/reverse-schema
-  (for/hash ([field bloom-filter-algorithm/schema] [position (range (vector-length bloom-filter-algorithm/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema bloom-filter-page-header/schema)
+(define bloom-filter-page-header/reverse-schema (make-reverse-schema bloom-filter-page-header/schema))
 
-(for ([index (range (vector-length split-block-algorithm/schema))])
-  (define field (vector-ref split-block-algorithm/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! split-block-algorithm/schema index new-field)))
-(define split-block-algorithm/reverse-schema
-  (for/hash ([field split-block-algorithm/schema] [position (range (vector-length split-block-algorithm/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema bloom-filter-hash/schema)
+(define bloom-filter-hash/reverse-schema (make-reverse-schema bloom-filter-hash/schema))
 
-(for ([index (range (vector-length data-page-header-v2/schema))])
-  (define field (vector-ref data-page-header-v2/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! data-page-header-v2/schema index new-field)))
-(define data-page-header-v2/reverse-schema
-  (for/hash ([field data-page-header-v2/schema] [position (range (vector-length data-page-header-v2/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema murmur-3/schema)
+(define murmur-3/reverse-schema (make-reverse-schema murmur-3/schema))
 
-(for ([index (range (vector-length dictionary-page-header/schema))])
-  (define field (vector-ref dictionary-page-header/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! dictionary-page-header/schema index new-field)))
-(define dictionary-page-header/reverse-schema
-  (for/hash ([field dictionary-page-header/schema] [position (range (vector-length dictionary-page-header/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema bloom-filter-algorithm/schema)
+(define bloom-filter-algorithm/reverse-schema (make-reverse-schema bloom-filter-algorithm/schema))
 
-(for ([index (range (vector-length index-page-header/schema))])
-  (define field (vector-ref index-page-header/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! index-page-header/schema index new-field)))
-(define index-page-header/reverse-schema
-  (for/hash ([field index-page-header/schema] [position (range (vector-length index-page-header/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema split-block-algorithm/schema)
+(define split-block-algorithm/reverse-schema (make-reverse-schema split-block-algorithm/schema))
 
-(for ([index (range (vector-length data-page-header/schema))])
-  (define field (vector-ref data-page-header/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! data-page-header/schema index new-field)))
-(define data-page-header/reverse-schema
-  (for/hash ([field data-page-header/schema] [position (range (vector-length data-page-header/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema data-page-header-v2/schema)
+(define data-page-header-v2/reverse-schema (make-reverse-schema data-page-header-v2/schema))
 
-(for ([index (range (vector-length column-metadata/schema))])
-  (define field (vector-ref column-metadata/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! column-metadata/schema index new-field)))
-(define column-metadata/reverse-schema
-  (for/hash ([field column-metadata/schema] [position (range (vector-length column-metadata/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema dictionary-page-header/schema)
+(define dictionary-page-header/reverse-schema (make-reverse-schema dictionary-page-header/schema))
 
-(for ([index (range (vector-length key-value/schema))])
-  (define field (vector-ref key-value/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! key-value/schema index new-field)))
-(define key-value/reverse-schema
-  (for/hash ([field key-value/schema] [position (range (vector-length key-value/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema index-page-header/schema)
+(define index-page-header/reverse-schema (make-reverse-schema index-page-header/schema))
 
-(for ([index (range (vector-length column-index/schema))])
-  (define field (vector-ref column-index/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! column-index/schema index new-field)))
-(define column-index/reverse-schema
-  (for/hash ([field column-index/schema] [position (range (vector-length column-index/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema data-page-header/schema)
+(define data-page-header/reverse-schema (make-reverse-schema data-page-header/schema))
 
-(for ([index (range (vector-length column-order/schema))])
-  (define field (vector-ref column-order/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! column-order/schema index new-field)))
-(define column-order/reverse-schema
-  (for/hash ([field column-order/schema] [position (range (vector-length column-order/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema column-metadata/schema)
+(define column-metadata/reverse-schema (make-reverse-schema column-metadata/schema))
 
-(for ([index (range (vector-length offset-index/schema))])
-  (define field (vector-ref offset-index/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! offset-index/schema index new-field)))
-(define offset-index/reverse-schema
-  (for/hash ([field offset-index/schema] [position (range (vector-length offset-index/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema key-value/schema)
+(define key-value/reverse-schema (make-reverse-schema key-value/schema))
 
-(for ([index (range (vector-length page-location/schema))])
-  (define field (vector-ref page-location/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! page-location/schema index new-field)))
-(define page-location/reverse-schema
-  (for/hash ([field page-location/schema] [position (range (vector-length page-location/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema column-index/schema)
+(define column-index/reverse-schema (make-reverse-schema column-index/schema))
 
-(for ([index (range (vector-length column-chunk/schema))])
-  (define field (vector-ref column-chunk/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! column-chunk/schema index new-field)))
-(define column-chunk/reverse-schema
-  (for/hash ([field column-chunk/schema] [position (range (vector-length column-chunk/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema column-order/schema)
+(define column-order/reverse-schema (make-reverse-schema column-order/schema))
 
-(for ([index (range (vector-length row-group/schema))])
-  (define field (vector-ref row-group/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! row-group/schema index new-field)))
-(define row-group/reverse-schema
-  (for/hash ([field row-group/schema] [position (range (vector-length row-group/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema offset-index/schema)
+(define offset-index/reverse-schema (make-reverse-schema offset-index/schema))
 
-(for ([index (range (vector-length schema-element/schema))])
-  (define field (vector-ref schema-element/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! schema-element/schema index new-field)))
-(define schema-element/reverse-schema
-  (for/hash ([field schema-element/schema] [position (range (vector-length schema-element/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema page-location/schema)
+(define page-location/reverse-schema (make-reverse-schema page-location/schema))
 
-(for ([index (range (vector-length logical-type/schema))])
-  (define field (vector-ref logical-type/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! logical-type/schema index new-field)))
-(define logical-type/reverse-schema
-  (for/hash ([field logical-type/schema] [position (range (vector-length logical-type/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema column-chunk/schema)
+(define column-chunk/reverse-schema (make-reverse-schema column-chunk/schema))
 
-(for ([index (range (vector-length file-metadata/schema))])
-  (define field (vector-ref file-metadata/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! file-metadata/schema index new-field)))
-(define file-metadata/reverse-schema
-  (for/hash ([field file-metadata/schema] [position (range (vector-length file-metadata/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema row-group/schema)
+(define row-group/reverse-schema (make-reverse-schema row-group/schema))
 
-(for ([index (range (vector-length statistics/schema))])
-  (define field (vector-ref statistics/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! statistics/schema index new-field)))
-(define statistics/reverse-schema
-  (for/hash ([field statistics/schema] [position (range (vector-length statistics/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema schema-element/schema)
+(define schema-element/reverse-schema (make-reverse-schema schema-element/schema))
 
-(for ([index (range (vector-length page-encoding-stats/schema))])
-  (define field (vector-ref page-encoding-stats/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! page-encoding-stats/schema index new-field)))
-(define page-encoding-stats/reverse-schema
-  (for/hash ([field page-encoding-stats/schema] [position (range (vector-length page-encoding-stats/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema logical-type/schema)
+(define logical-type/reverse-schema (make-reverse-schema logical-type/schema))
 
-(for ([index (range (vector-length sorting-column/schema))])
-  (define field (vector-ref sorting-column/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! sorting-column/schema index new-field)))
-(define sorting-column/reverse-schema
-  (for/hash ([field sorting-column/schema] [position (range (vector-length sorting-column/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema file-metadata/schema)
+(define file-metadata/reverse-schema (make-reverse-schema file-metadata/schema))
 
-(for ([index (range (vector-length decimal-type/schema))])
-  (define field (vector-ref decimal-type/schema index))
-  (when (symbol? (thrift-field-major-type field))
-    (define new-field
-      (struct-copy thrift-field
-                   field
-                   [major-type (eval (thrift-field-major-type field) this-namespace)]))
-    (vector-set! decimal-type/schema index new-field)))
-(define decimal-type/reverse-schema
-  (for/hash ([field decimal-type/schema] [position (range (vector-length decimal-type/schema))])
-    (set-thrift-field-position! field position)
-      (values (thrift-field-id field) field)))
+(fixup-schema statistics/schema)
+(define statistics/reverse-schema (make-reverse-schema statistics/schema))
+
+(fixup-schema page-encoding-stats/schema)
+(define page-encoding-stats/reverse-schema (make-reverse-schema page-encoding-stats/schema))
+
+(fixup-schema sorting-column/schema)
+(define sorting-column/reverse-schema (make-reverse-schema sorting-column/schema))
+
+(fixup-schema decimal-type/schema)
+(define decimal-type/reverse-schema (make-reverse-schema decimal-type/schema))
