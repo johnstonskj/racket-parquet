@@ -10,12 +10,11 @@
 
 ;; ---------- Requirements
 
-(require thrift/idl/enumeration)
+(require thrift/private/enumeration)
 
 ;; ---------- Implementation (Types)
 
 ;; from https://thrift.apache.org/docs/types
-
 (define-enumeration type 0
   (;; Base Types
    bool
@@ -34,12 +33,23 @@
    set
    map))
 
+(define-enumeration required-type
+  (required
+   optional
+   default))
+
+(define-enumeration container-type
+  (list-of
+   set-of
+   map-of
+   none))
+
 (struct thrift-field
   (id
    name
    required
    container
-   major-type ; (decoder . encoder)
-   minor-type ; (decoder . encoder)
+   major-type ; one day will be (decoder . encoder)
+   minor-type ; one day will be (decoder . encoder)
    [position #:mutable])
   #:transparent)

@@ -5,11 +5,9 @@
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
 
-(require parquet/private/file
-         parquet/private/format)
+(require parquet/generated/parquet)
 
 (provide
- (all-from-out parquet/private/file)
- (all-from-out parquet/private/format))
+ (all-from-out parquet/generated/parquet))
 
 

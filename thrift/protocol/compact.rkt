@@ -72,8 +72,8 @@
          racket/list
          racket/set
          thrift
-         thrift/idl/enumeration
          thrift/protocol/plain
+         thrift/private/enumeration
          thrift/private/logging)
 
 ;; ---------- Internal types/values
@@ -188,16 +188,16 @@
   (void))
 
 (define (field-begin state transport)
-  (log-thrift-debug "field-begin")
+  (log-thrift-debug "field-begin @ ~a" (file-position (transport-in-port transport)))
   (define head (read-byte (transport-in-port transport)))
   (cond
     [(= head field-type-stop)
-     (log-thrift-debug "(field-stop)")
+     (log-thrift-debug "<< (field-stop)")
      (field-header unnamed field-type-stop 0)]
     [else
      (define field-id-delta (bitwise-bit-field head 4 8))
      (define field-type (bitwise-bit-field head 0 4))
-;     (log-thrift-debug "field delta:type ~b -> ~b ~b" head field-id-delta field-type)
+     (log-thrift-debug (format ">> field header ~b -> ~b ~b" head field-id-delta field-type))
      (define field-id (cond
                         [(= field-id-delta 0)
                          (zigzag->integer (read-plain-integer (transport-in-port transport) 2))]
@@ -208,7 +208,7 @@
      (set-compact-state-last-field-id!
       state
       (cons field-id (rest (compact-state-last-field-id state))))
-     (log-thrift-debug "structure field id ~a type ~s" field-id (integer->field-type field-type))
+     (log-thrift-debug "<< structure field id ~a type ~a (~s)" field-id field-type (integer->field-type field-type))
      (field-header unnamed field-type field-id)]))
        
 (define (field-end state transport)
@@ -241,7 +241,7 @@
                  [(= short-size 15)
                   (read-varint (transport-in-port transport))]
                  [else short-size]))
-  (log-thrift-debug "reading list, ~a elements, of type ~s" size (integer->field-type element-type))
+  (log-thrift-debug "<< reading list, ~a elements, of type ~s" size (integer->field-type element-type))
   (list-or-set element-type size))
 
 (define (list-end state transport)

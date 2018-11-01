@@ -26,7 +26,6 @@
 (define-syntax-literals kw-container (list-of set-of map-of none))
 
 (define-syntax (define-thrift-struct stx)
-;  (define (type-id->decoder type)
   (syntax-parse stx
     [(_ struct-id:id ((~seq field-details ...)))
      (define name-list '())

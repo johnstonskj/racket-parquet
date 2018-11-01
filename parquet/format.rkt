@@ -11,17 +11,13 @@
 ;; ---------- Requirements
 
 (require thrift
-         thrift/idl/enumeration
-         thrift/idl/struct
-         thrift/protocol/decoding)
+         thrift/idl/language)
 
 ;; ---------- Implementation
 
-(define module-name 'parquet)
+(define-thrift-namespace parquet)
 
-(define magic-number #"PAR1")
-
-(define-enumeration
+(define-thrift-enum
   parquet-type 0
   (boolean
    int32
@@ -32,7 +28,7 @@
    byte-array
    fixed-len-byte-arrary))
 
-(define-enumeration
+(define-thrift-enum
   converted-type 0
   (utf8
    map
@@ -57,13 +53,13 @@
    bson
    interval))
 
-(define-enumeration
+(define-thrift-enum
  field-repetition-type 0
  (required
   optional
   repeated))
 
-(define-enumeration
+(define-thrift-enum
   encoding 0
   (plain
    group-var-int ; deprecated
@@ -76,7 +72,7 @@
    rle-dictionary
    ))
 
-(define-enumeration
+(define-thrift-enum
   compression-codec 0
   (uncompressed
    snappy
@@ -86,7 +82,7 @@
    lz4
    zstd))
 
-(define-enumeration
+(define-thrift-enum
   page-type 0
   (data
    index
@@ -94,7 +90,7 @@
    data-v2
    bloom-filter))
 
-(define-enumeration
+(define-thrift-enum
   boundary-order 0
   (unordered
    ascending
@@ -104,7 +100,6 @@
 (define-thrift-struct decimal-type
   ([1 scale required type-int32]
    [2 precision required type-int32]))
-
 
 (define-thrift-struct sorting-column
   ([1 column-index required type-int32]
@@ -192,12 +187,12 @@
    [6 total-uncompressed-size required type-int64]
    [7 total-compressed-size required type-int64]
    [8 key-value-metadata optional list-of key-value]
-   [8 data-page-offset required type-int64]
-   [9 index-page-offset optional type-int64]
-   [10 dictionary-page-offset optional type-int64]
-   [11 statistics optional statistics]
-   [12 encoding-stats optional list-of page-encoding-stats]
-   [13 bloom-filter-offset optional type-int64]))
+   [9 data-page-offset required type-int64]
+   [10 index-page-offset optional type-int64]
+   [11 dictionary-page-offset optional type-int64]
+   [12 statistics optional statistics]
+   [13 encoding-stats optional list-of page-encoding-stats]
+   [14 bloom-filter-offset optional type-int64]))
 
 (define-thrift-struct data-page-header
   ([1 num-values required type-int32]

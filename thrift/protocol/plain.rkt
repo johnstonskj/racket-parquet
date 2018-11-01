@@ -12,8 +12,7 @@
 
 ;; ---------- Requirements
 
-(require thrift/protocol/common
-         thrift/transport/common)
+(require thrift)
 
 ;; ---------- Implementation
 

@@ -8,9 +8,7 @@
 
 (provide
  
- (all-defined-out)
- 
- with-logging-to-port)
+ (all-defined-out))
 
 (require racket/logging)
 

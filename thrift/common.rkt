@@ -13,7 +13,7 @@
 
 ;; ---------- Requirements
 
-(require thrift/idl/enumeration)
+(require thrift/private/enumeration)
 
 ;; ---------- Implementation (Types)
 

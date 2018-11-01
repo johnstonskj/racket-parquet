@@ -30,14 +30,15 @@
          (prefix-in plain: thrift/protocol/plain)
          (prefix-in compact: thrift/protocol/compact)
          thrift/protocol/decoding
-         parquet/generated/parquet
-         parquet/private/logging)
+         parquet/generated/parquet)
 
 ;; ---------- Internal types
 
 ;; ---------- Implementation
 
 (define int32-length 4)
+
+(define magic-number #"PAR1")
 
 (define magic-length (bytes-length magic-number))
 
@@ -97,7 +98,7 @@
   (with-logging-to-port
       (current-output-port)
     (λ ()
-      (define transport (open-file "../../test-data/nation.impala.parquet"))
+      (define transport (open-file "../test-data/nation.impala.parquet"))
       (define metadata (read-metadata transport))
       (displayln (format "File Metadata: ~a" (transport-source transport)))
       (displayln (format "  Version: ~a" (file-metadata-version metadata)))
@@ -123,11 +124,11 @@
                     (schema-element-name element)
                     (if (equal? (schema-element-type element) 'no-value)
                         'no-value
-                        (integer->type (schema-element-type element)))
+                        (schema-element-type element))
                     (schema-element-type-length element)
                     (if (equal? (schema-element-repetition-type element) 'no-value)
                         'no-value
-                        (integer->field-repetition-type (schema-element-repetition-type element)))
+                        (schema-element-repetition-type element))
                     (schema-element-num-children element)
                     (schema-element-converted-type element)
                     ))
@@ -150,17 +151,17 @@
                                  (column-metadata-path-in-schema (column-chunk-metadata column))
                                  "; ")))
              (displayln (format "          type=~a,"
-                                (integer->type (column-metadata-type
-                                                (column-chunk-metadata column)))))
+                                (column-metadata-type
+                                 (column-chunk-metadata column))))
              (displayln (format "          encodings=~a, "
                                 (string-join
                                  (for/list ([encoding (column-metadata-encodings
                                                        (column-chunk-metadata column))])
-                                   (symbol->string (integer->encoding encoding)))
+                                   (symbol->string (encoding->symbol encoding)))
                                  "; ")))
              (displayln (format "          compression=~a"
-                                (integer->compression-codec (column-metadata-codec
-                                                             (column-chunk-metadata column)))))
+                                (column-metadata-codec
+                                 (column-chunk-metadata column))))
              (displayln (format "          values=~a, "
                                 (column-metadata-num-values (column-chunk-metadata column))))
              (displayln (format "          uncompressed-size=~a, "
@@ -180,4 +181,4 @@
       (close-file-transport transport)
       )
     #:logger thrift-logger
-    'warning))
+    'info))
