@@ -15,19 +15,26 @@
 
 @;{============================================================================}
 
-@title[]{Module thrift.}
-@defmodule[thrift]
+@title[]{Thrift Processor Support}
 
-Support for Thrift encoding
+Support for Thrift protocol encodings
 
 @examples[ #:eval example-eval
 (require thrift)
-; add more here.
+
+(define (my-processor in out)
+  transport-processor/c
+  #f)
 ]
 
 @;{============================================================================}
+@section[]{Processor Types}
+@defmodule[thrift/processor/common]
 
-@;Add your API documentation here...
+@racketblock[
+(define transport-processor/c
+  (-> input-transport? output-transport? boolean?))
 
-
-Document  - TBD
+(define protocol-processor/c
+  (-> decoder? encoder? boolean?))
+]

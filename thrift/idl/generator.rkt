@@ -5,7 +5,13 @@
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
 
-(provide process-file)
+(require racket/contract)
+
+(provide
+
+ (contract-out
+  [process-file
+   (->* (string?) (boolean?) void?)]))
 
 ;; ---------- Requirements
 
