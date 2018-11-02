@@ -11,8 +11,8 @@
 
 (require syntax/parse
          thrift
-         thrift/idl/literals
          thrift/protocol/decoding
+         thrift/private/literals
          thrift/private/logging
          (for-syntax racket/bool
                      racket/match

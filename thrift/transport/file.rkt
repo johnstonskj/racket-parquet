@@ -5,21 +5,57 @@
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
 
-(provide
- 
- open-file-transport
+(require racket/contract)
 
- close-file-transport)
+(provide
+
+ (contract-out
+  
+  [open-input-file-transport
+   (-> string? transport?)]
+
+  [open-output-file-transport
+   (-> string? transport?)]
+
+  [transport-file-size
+   (-> transport? exact-nonnegative-integer?)]
+
+  [transport-file-position
+   (->* (transport?) (exact-nonnegative-integer?) any/c)]))
 
 ;; ---------- Requirements
 
-(require thrift/transport/common
+(require racket/bool
+         thrift/transport/common
          thrift/private/logging)
 
 ;; ---------- Implementation
 
-(define (open-file-transport file-path)
-  (log-thrift-info "opening thrift file: ~a" file-path)
+(define (open-input-file-transport file-path)
+  (open-file-transport file-path 'input))
+
+(define (open-output-file-transport file-path)
+  (open-file-transport file-path 'output))
+
+(define (transport-file-size tport)
+  (cond
+    [(input-transport? tport)
+     (file-size (transport-source tport))]
+    [else (error "transport must be opened for input")]))
+
+(define (transport-file-position tport [new-pos #f])
+  (cond
+    [(input-transport? tport)
+     (cond
+       [(false? new-pos)
+        (file-position (transport-port tport))]
+       [else (file-position (transport-port tport) new-pos)])]
+    [else (error "transport must be opened for input")]))
+
+;; ---------- Internal procedures
+
+(define (open-file-transport file-path direction)
+  (log-thrift-info "opening thrift file: ~a for ~a" file-path direction)
   (cond
     [(not (file-exists? file-path))
      (error 'open-file-transport "file does not exist, path:" file-path)]
@@ -28,26 +64,13 @@
     [(not (member 'write (file-or-directory-permissions file-path)))
      (error 'open-file-transport "file not writeable")]
     [else
-     (define size (file-size file-path))
-     (log-thrift-debug "~a size: ~a" file-path size)
+     (define port
+       (cond
+         [(equal? direction 'input)
+          (open-input-file file-path #:mode 'binary)]
+         [(equal? direction 'output)
+          (open-output-file file-path #:mode 'binary #:exists 'can-update)]))
+     (file-stream-buffer-mode port 'block)
      
-     (define-values (in-port out-port)
-       (open-input-output-file file-path
-                               #:mode 'binary
-                               #:exists 'can-update))
-     (file-stream-buffer-mode in-port 'block)
-     (file-stream-buffer-mode out-port 'block)
-     
-     (transport file-path
-                in-port
-                out-port
-                (λ () (file-size file-path))
-                (λ ([pos #f]) (if pos
-                                  (file-position in-port pos)
-                                  (file-position in-port)))
-                #f)]))
+     (transport file-path port)]))
 
-(define (close-file-transport transport)
-  (log-thrift-info "closing thrift file: ~a" (transport-source transport))
-  (close-input-port (transport-in-port transport))
-  (close-output-port (transport-out-port transport)))

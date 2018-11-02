@@ -62,9 +62,13 @@
 
 (provide
  
- get-protocol-encoder
- 
- get-protocol-decoder)
+ (contract-out
+  
+  [get-protocol-encoder
+   (-> transport? (or/c encoder? #f))]
+  
+  [get-protocol-decoder
+   (-> transport? (or/c decoder? #f))]))
 
 ;; ---------- Requirements
 
@@ -104,13 +108,10 @@
 
 ;; ---------- Implementation
 
-(define/contract
-  (get-protocol-encoder transport)
-  (-> transport? (or/c encoder? #f))
+(define (get-protocol-encoder transport)
   #f)
 
-(define/contract (get-protocol-decoder transport)
-  (-> transport? (or/c decoder? #f))
+(define (get-protocol-decoder transport)
   (define state (compact-state '()))
   (decoder
    (λ () (message-begin state transport))
@@ -126,8 +127,8 @@
    (λ () (set-begin state transport))
    (λ () (set-end state transport))
    (λ () (read-boolean transport))
-   (λ () (read-byte (transport-in-port transport)))
-   (λ (num) (read-bytes num (transport-in-port transport)))
+   (λ () (read-byte (transport-port transport)))
+   (λ (num) (read-bytes num (transport-port transport)))
    (λ () (read-integer transport 16))
    (λ () (read-integer transport 32))
    (λ () (read-integer transport 64))
@@ -135,61 +136,71 @@
    (λ () (read-string transport))))
 
 (define (read-boolean transport)
-  (read-byte (transport-in-port transport)))
+  (unless (input-transport? transport) (error "transport must be open for input"))
+  (read-byte (transport-port transport)))
 
 (define (read-integer transport width)
-  (define integer (zigzag->integer (read-varint (transport-in-port transport))))
+  (unless (input-transport? transport) (error "transport must be open for input"))
+  (define integer (zigzag->integer (read-varint (transport-port transport))))
   (cond
     [(<= (integer-length integer) width)
      integer]
     [else (error 'read-integer "integer read is too wide for bits: " width)]))
 
 (define (read-double in)
-  (->fl (read-plain-integer (transport-in-port transport) 8)))
+  (unless (input-transport? transport) (error "transport must be open for input"))
+  (->fl (read-plain-integer (transport-port transport) 8)))
 
 (define (read-binary transport)
-  (define byte-length (read-varint (transport-in-port transport)))
-  (read-bytes byte-length (transport-in-port transport)))
+  (unless (input-transport? transport) (error "transport must be open for input"))
+  (define byte-length (read-varint (transport-port transport)))
+  (read-bytes byte-length (transport-port transport)))
 
 (define (read-string transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (bytes->string/utf-8 (read-binary transport)))
 
 (define (message-begin state transport)
-  (define msg-protocol-id (read-byte (transport-in-port transport)))
+  (unless (input-transport? transport) (error "transport must be open for input"))
+  (define msg-protocol-id (read-byte (transport-port transport)))
   (unless (= protocol-id msg-protocol-id)
     (error 'read-message-header "invalid message protocol id: " msg-protocol-id))
-  (define msg-type-version (read-byte (transport-in-port transport)))
+  (define msg-type-version (read-byte (transport-port transport)))
   (define msg-type (bitwise-and (arithmetic-shift msg-type-version -5) #b111))
   (unless (message-type? msg-type)
     (error 'read-message-header "invalid message type: " msg-type))
   (define msg-version (bitwise-and msg-type-version #b11111))
   (unless (= version msg-version)
     (error 'read-message-header "invalid message version: " msg-version))
-  (define msg-sequence-id (read-varint (transport-in-port transport)))
-  (define msg-method-name (read-string (transport-in-port transport)))
+  (define msg-sequence-id (read-varint (transport-port transport)))
+  (define msg-method-name (read-string (transport-port transport)))
   (unless (= (string-length msg-method-name) 0)
     (error 'read-message-header "method name not specified."))
   (log-thrift-debug "message name ~a, type ~s, sequence" msg-method-name msg-type msg-sequence-id)
   (message-header msg-method-name msg-type msg-sequence-id))
 
 (define (message-end state transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (void))
 
 (define (struct-begin state transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "struct-begin")
   ; push new tracking ID
   (set-compact-state-last-field-id! state (cons 0 (compact-state-last-field-id state)))
   unnamed)
 
 (define (struct-end state transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "struct-end")
   ; pop the tracking ID
   (set-compact-state-last-field-id! state (rest (compact-state-last-field-id state)))
   (void))
 
 (define (field-begin state transport)
-  (log-thrift-debug "field-begin @ ~a" (file-position (transport-in-port transport)))
-  (define head (read-byte (transport-in-port transport)))
+  (unless (input-transport? transport) (error "transport must be open for input"))
+  (log-thrift-debug "field-begin @ ~a" (file-position (transport-port transport)))
+  (define head (read-byte (transport-port transport)))
   (cond
     [(= head field-type-stop)
      (log-thrift-debug "<< (field-stop)")
@@ -200,7 +211,7 @@
      (log-thrift-debug (format ">> field header ~b -> ~b ~b" head field-id-delta field-type))
      (define field-id (cond
                         [(= field-id-delta 0)
-                         (zigzag->integer (read-plain-integer (transport-in-port transport) 2))]
+                         (zigzag->integer (read-plain-integer (transport-port transport) 2))]
                         [else
                          (+ (first (compact-state-last-field-id state)) field-id-delta)]))
      (when (= field-id 0)
@@ -212,47 +223,55 @@
      (field-header unnamed field-type field-id)]))
        
 (define (field-end state transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "field-end")
   (void))
 
 (define (field-stop state transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "field-stop")
   (void))
 
 (define (map-begin state transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "map-begin")
-  (define size (read-varint  (transport-in-port transport)))
-  (define head-byte (read-byte (transport-in-port transport)))
+  (define size (read-varint  (transport-port transport)))
+  (define head-byte (read-byte (transport-port transport)))
   (define key-type (bitwise-bit-field head-byte 4 8))
   (define element-type (bitwise-bit-field head-byte 0 4))
   (map key-type element-type size))
 
 
 (define (map-end state transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "map-end")
   (void))
 
 (define (list-begin state transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "list-begin")
-  (define first-byte (read-byte (transport-in-port transport)))
+  (define first-byte (read-byte (transport-port transport)))
   (define short-size (bitwise-bit-field first-byte 4 8))
   (define element-type (bitwise-bit-field first-byte 0 4))
   (define size (cond
                  [(= short-size 15)
-                  (read-varint (transport-in-port transport))]
+                  (read-varint (transport-port transport))]
                  [else short-size]))
   (log-thrift-debug "<< reading list, ~a elements, of type ~s" size (integer->field-type element-type))
   (list-or-set element-type size))
 
 (define (list-end state transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "list-end")
   (void))
 
 (define (set-begin state transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "set-begin")
   (list-begin state transport))
 
 (define (set-end state transport)
+  (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "set-end")
   (void))
 

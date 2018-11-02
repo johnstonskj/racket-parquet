@@ -9,3 +9,6 @@
 (define scribblings '(("scribblings/parquet.scrbl" (multi-page))))
 
 (define test-omit-paths '("scribblings" "private"))
+
+(define racket-launcher-names (list "rparquet"))
+(define racket-launcher-libraries (list "file.rkt"))

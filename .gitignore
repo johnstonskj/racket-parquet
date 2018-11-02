@@ -3,4 +3,5 @@
 .#*.rkt
 compiled/
 parquet/doc/
+thrift/doc/
 /coverage/

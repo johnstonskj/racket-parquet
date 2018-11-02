@@ -1,5 +1,5 @@
 PACKAGENAME=parquet
-COLLECTS=parquet
+COLLECTS=parquet thrift
 SCRBL=parquet/scribblings/$(PACKAGENAME).scrbl
 
 all: setup test

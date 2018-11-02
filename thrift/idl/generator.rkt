@@ -278,6 +278,10 @@
     (displayln (format "(define ~a/reverse-schema (make-reverse-schema ~a/schema))" id id) out)
     (newline out)))
 
+(module+ main
+  (displayln "!"))
+
 ;; ---------- Internal tests
 
-(process-file "../../parquet/format.rkt")
+(module+ test
+  (process-file "../../parquet/format.rkt"))
