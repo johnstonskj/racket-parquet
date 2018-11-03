@@ -11,7 +11,7 @@
 
  (contract-out
   [process-file
-   (->* (string?) (boolean?) void?)]))
+   (->* (string? string?) (boolean?) void?)]))
 
 ;; ---------- Requirements
 
@@ -25,12 +25,13 @@
 
 ;; ---------- Implementation
 
-(define (process-file file-path [over-write? #f])
+(define (process-file file-path output-path [over-write? #f])
   (define in (open-input-file file-path))
+  (define out (output #f #f #f #f))
   (define namespace #f)
-  (define buffer (open-output-string))
+  (define enums '())
   (define structs '())
-  (write-file-header buffer file-path)
+  
   (let next ([syn (read-next-syntax file-path in)])
     (unless (equal? syn eof)
       (define syntax-form (syntax-head syn))
@@ -39,33 +40,75 @@
          (unless (equal? namespace #f)
            (error "cannot redefine namespace"))
          (set! namespace (syntax->datum (second (syntax-e syn))))
-         (write-logging buffer namespace)
-         ]
+         (set! out
+               (output
+                (open-output-file (format "_~a.rkt" namespace))
+                (open-output-file (format "_~a-encode.rkt" namespace))
+                (open-output-file (format "_~a-decode.rkt" namespace))
+                (open-output-file (format "_~a.scrbl" namespace))))
+         (write-file-header (output-defines out)
+                            file-path
+                            namespace
+                            (map ~a '(racket/logging
+                                      racket/match
+                                      racket/list
+                                      racket/set
+                                      thrift
+                                      thrift/protocol/decoding)))
+         (write-file-header (output-encoders out)
+                            file-path
+                            namespace
+                            (list (format "\"~a.rkt\"" namespace)))
+         (write-file-header (output-decoders out)
+                            file-path
+                            namespace
+                            (list (format "\"~a.rkt\"" namespace)))
+         (write-scribble-file-header (output-docs out)
+                                     file-path
+                                     namespace
+                                     (list (format "\"~a.rkt\"" namespace)))
+         (write-logging (output-defines out) namespace)]
+        
         [(equal? syntax-form 'define-thrift-enum)
          (when (equal? namespace #f)
            (error "no defined namespace"))
-         (parse-enum syn namespace buffer)]
+         (define enum-id (parse-enum syn namespace out))
+         (set! enums (cons enum-id enums))]
+        
         [(equal? syntax-form 'define-thrift-struct)
          (when (equal? namespace #f)
            (error "no defined namespace"))
-         (define struct-id (parse-struct syn namespace buffer))
+         (define struct-id (parse-struct syn namespace out))
          (set! structs (cons struct-id structs))]
+        
         [(or (equal? syntax-form 'provide)
              (equal? syntax-form 'require)
              (equal? syntax-form 'define))
          (void)] ; ignore
+        
         [else
          (raise-contract-error syntax-form
                                syn
                                (syntax-position syn)
                                file-path
                                "unsupported top-level form")])
+      
       (next (read-next-syntax file-path in))))
-  (write-struct-fixups buffer structs)
-  (write-file-footer buffer)
-  (displayln (get-output-string buffer)))
+  
+  (write-struct-fixups (output-defines out) structs)
+  
+  (close-output-port (output-defines out))
+  (close-output-port (output-encoders out))
+  (close-output-port (output-decoders out))
+  (close-output-port (output-docs out)))
 
 ;; ---------- Internal procedures (parsing)
+
+(struct output
+  (defines
+   encoders
+   decoders
+   docs))
 
 (define (read-next-syntax src in)
   (with-handlers ([exn:fail:read?
@@ -83,19 +126,23 @@
   (pattern (name:id value:nat)))
 
 (define (parse-enum syn ns out)
-  (syntax-parse syn
-    #:context 'enum-specification
-    [(_ enum-id:id (~optional start:nat #:defaults ([start #'0])) ((~seq values:id ...)))
-     (define names (syntax->list #'(values ...)))
-     (define start-num (syntax->datum #'start))
-     (define name-values (for/list ([name names] [v (range start-num (+ (length names) start-num))])
-                           (cons (syntax->datum name) v)))
-     (write-enum out ns (syntax->datum #'enum-id) name-values)]
-    [(_ enum-id:id (~optional start:nat #:defaults ([start #'0])) ((~seq values:name-value ...)))
-     (define name-values (for/list ([name (syntax->list #'(values.name ...))]
-                                    [v (syntax->list #'(values.value ...))])
-                           (cons (syntax->datum name) (syntax->datum v))))
-     (write-enum out ns (syntax->datum #'enum-id) name-values)]))
+  (define-values (enum-id name-values)
+    (syntax-parse syn
+      #:context 'enum-specification
+      [(_ enum-id:id (~optional start:nat #:defaults ([start #'0])) ((~seq idents:id ...)))
+       (define names (syntax->list #'(idents ...)))
+       (define start-num (syntax->datum #'start))
+       (values (syntax->datum #'enum-id)
+               (for/list ([name names] [v (range start-num (+ (length names) start-num))])
+                 (cons (syntax->datum name) v)))]
+      [(_ enum-id:id (~optional start:nat #:defaults ([start #'0])) ((~seq idents:name-value ...)))
+       (values (syntax->datum #'enum-id)
+               (for/list ([name (syntax->list #'(idents.name ...))]
+                          [v (syntax->list #'(idents.value ...))])
+                 (cons (syntax->datum name) (syntax->datum v))))]))
+  (write-enum (output-defines out) ns enum-id name-values)
+  (write-enum-doc (output-docs out) ns enum-id name-values)
+  (syntax->datum #'enum-id))
 
 (define (parse-struct syn ns out)
   (syntax-parse syn
@@ -142,25 +189,19 @@
                [else (error "not a valid state!" input)])))
          ;; TODO: validate.
          (apply thrift-field parsed)))
-     (write-struct out ns (syntax->datum #'struct-id) field-list)
+     (write-struct (output-defines out) ns (syntax->datum #'struct-id) field-list)
+     (write-struct-doc (output-docs out) ns (syntax->datum #'struct-id) field-list)
      (syntax->datum #'struct-id)]))
 
 ;; ---------- Internal procedures (writing)
 
-(define required-modules
-  (map ~a '(racket/logging
-            racket/match
-            racket/list
-            racket/set
-            thrift
-            thrift/protocol/decoding)))
-
-(define (write-file-header out in-file-path)
+(define (write-file-header out in-file-path ns required-modules)
   (displayln "#lang racket/base" out)
   (displayln ";;" out)
-  (displayln (format ";; Generated from ~a" in-file-path) out)
-  (displayln (format ";;             on ~a" (date->string (current-date))) out)
-  (displayln ";;             by thrift/idl/generator v0.1" out)
+  (displayln (format ";; Generated namespace ~a" ns) out)
+  (displayln (format ";;                from ~a" in-file-path) out)
+  (displayln (format ";;                  on ~a" (date->string (current-date))) out)
+  (displayln ";;                  by thrift/idl/generator v0.1" out)
   (displayln ";;" out)
   (newline out)
   (displayln "(provide (all-defined-out))" out)
@@ -168,12 +209,34 @@
   (displayln (format "(require ~a)" (string-join required-modules " ")) out)
   (newline out))
 
-(define (write-file-footer out)
+(define (write-scribble-file-header out in-file-path ns required-modules)
+  (displayln "#lang scribble/manual" out)
+  (displayln "@;" out)
+  (displayln (format "@; Generated namespace ~a" ns) out)
+  (displayln (format "@;                from ~a" in-file-path) out)
+  (displayln (format "@;                  on ~a" (date->string (current-date))) out)
+  (displayln "@;                  by thrift/idl/generator v0.1" out)
+  (displayln "@;" out)
+  (newline out)
+  (newline out)
+  (displayln  "@(require racket/sandbox scribble/code scribble/eval" out)
+  (displayln (format "          (for-label ~a))" (string-join required-modules " ")) out)
+  (newline out)
+  (displayln (format "@title[]{Thrift Namespace ~a}" ns) out)
   (newline out))
 
 (define (write-logging out ns)
   (displayln (format "(define-logger ~a)" ns) out)
   (displayln (format "(current-logger ~a-logger)" ns) out)
+  (newline out))
+
+(define (write-enum-doc out ns id values)
+  (displayln (format "@defproc[(~a? [v any/c]) boolean?]" id) out)
+  (newline out)
+  (displayln "@deftogether[(" out)
+  (for ([vs values])
+    (displayln (format "  @defthing[~a:~a ~a?]" id (car vs) id) out))
+  (displayln ")]" out)
   (newline out))
 
 (define (write-enum out ns id values)
@@ -220,6 +283,30 @@
      (format "~a/decode~a" type suffix)]
     [else
      (format "'~a/decode~a" type suffix)]))
+
+(define (write-struct-doc out ns id fields)
+  (displayln (format "@defstruct*[~a (" id) out)
+  (for ([f fields])
+    (cond
+      [(equal? (thrift-field-container f) container-type-list-of)
+       (displayln (format "             [~a (listof ~a)]"
+                          (thrift-field-name f)
+                          (thrift-field-major-type f)) out)]
+      [(equal? (thrift-field-container f) container-type-set-of)
+       (displayln (format "             [~a (setof ~a)]"
+                          (thrift-field-name f)
+                          (thrift-field-major-type f)) out)]
+      [(equal? (thrift-field-container f) container-type-map-of)
+       (displayln (format "             [~a (hash/c ~a ~a)]"
+                          (thrift-field-name f)
+                          (thrift-field-major-type f)
+                          (thrift-field-minor-type f)) out)]
+      [else
+       (displayln (format "             [~a ~a]"
+                          (thrift-field-name f)
+                          (thrift-field-major-type f)) out)]))
+  (displayln ")]" out)
+  (newline out))
 
 (define (write-struct out ns id fields)
   (displayln (format "(struct ~a (~a) #:transparent)"
@@ -290,4 +377,4 @@
 ;; ---------- Internal tests
 
 (module+ test
-  (process-file "../../parquet/format.rkt"))
+  (process-file "../../parquet/format.rkt" "."))
