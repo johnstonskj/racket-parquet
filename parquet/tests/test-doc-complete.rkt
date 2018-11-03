@@ -33,4 +33,4 @@
          (displayln out))
        (check-eq? (string-length out) 0)))))
 
-(test-doc-coverage '(parquet))
+(test-doc-coverage '(parquet/file))

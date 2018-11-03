@@ -1,6 +1,6 @@
 #lang racket/base
 ;;
-;; parquet - thrift.
+;; thrift - prototol.
 ;;   Support for Thrift encoding
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).

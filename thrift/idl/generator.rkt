@@ -21,7 +21,8 @@
          racket/struct
          racket/syntax
          syntax/parse
-         thrift/idl/common)
+         thrift/idl/common
+         thrift/private/logging)
 
 ;; ---------- Implementation
 
@@ -372,9 +373,27 @@
     (newline out)))
 
 (module+ main
-  (displayln "!"))
+  (require racket/cmdline racket/logging)
 
-;; ---------- Internal tests
+  (define overwrite-mode (make-parameter #f))
+  (define logging-level (make-parameter 'warning))
 
-(module+ test
-  (process-file "../../parquet/format.rkt" "."))
+  (define file-to-compile
+    (command-line
+     #:program "compiler"
+     #:once-each
+     [("-v" "--verbose") "Compile with verbose messages"
+                         (logging-level 'info)]
+     [("-V" "--very-verbose") "Compile with very verbose messages"
+                         (logging-level 'debug)]
+     [("-f" "--force-overwrite") "Over-write any existing files"
+                         (overwrite-mode #t)]
+     #:args (file-path)
+     file-path))
+
+  (with-logging-to-port
+      (current-output-port)
+    (λ ()
+      (process-file file-to-compile (overwrite-mode)))
+    #:logger thrift-logger
+    (logging-level)))

@@ -69,24 +69,43 @@ Support for Thrift format definitions
 TBD
 }
 
+@deftogether[(@defproc[(integer->type [n exact-nonnegative-integer?]) type?]
+              @defproc[(type/decode [d decoder?]) type?]
+              @defproc[(type/names) (listof string?)])]{
+TBD
+}
+
 @subsection[]{Field Type Information}
 
 @defproc[(required-type? [v any/c]) boolean?]
 
-@deftogether[(@defthing[required required-type?]
-               @defthing[optional required-type?]
-               @defthing[default required-type?])]{
+@deftogether[(@defthing[required-type-required required-type?]
+               @defthing[required-type-optional required-type?]
+               @defthing[required-type-default required-type?])]{
+TBD
+}
+
+@deftogether[(@defproc[(integer->required-type [n exact-nonnegative-integer?]) required-type?]
+              @defproc[(required-type/decode [d decoder?]) required-type?]
+              @defproc[(required-type/names) (listof string?)])]{
 TBD
 }
 
 @defproc[(container-type? [v any/c]) boolean?]
 
-@deftogether[(@defthing[list-of container-type?]
-               @defthing[set-of container-type?]
-               @defthing[map-of container-type?]
-               @defthing[none container-type?])]{
+@deftogether[(@defthing[container-type-list-of container-type?]
+               @defthing[container-type-set-of container-type?]
+               @defthing[container-type-map-of container-type?]
+               @defthing[container-type-none container-type?])]{
 TBD
 }
+
+@deftogether[(@defproc[(integer->container-type [n exact-nonnegative-integer?]) container-type?]
+              @defproc[(container-type/decode [d decoder?]) container-type?]
+              @defproc[(container-type/names) (listof string?)])]{
+TBD
+}
+
 
 @defstruct*[thrift-field
             ([id identifier?]
@@ -95,7 +114,8 @@ TBD
              [container symbol?]
              [major-type symbol?]
              [minor-type symbol?]
-             [position exact-nonnegative-integer?])]{
+             [position exact-nonnegative-integer?])
+            #:mutable]{
 TBD
 }
 
