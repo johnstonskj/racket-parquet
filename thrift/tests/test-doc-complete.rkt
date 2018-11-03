@@ -1,6 +1,6 @@
 #lang racket/base
 ;;
-;; parquet - Test Documentation Coverage.
+;; thrift - Test Documentation Coverage.
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
 
@@ -33,4 +33,13 @@
          (displayln out))
        (check-eq? (string-length out) 0)))))
 
-(test-doc-coverage '(thrift))
+(test-doc-coverage '(thrift/idl/common
+thrift/idl/language
+thrift/idl/generator
+thrift/protocol/common
+thrift/protocol/plain
+thrift/protocol/compact
+thrift/transport/common
+thrift/transport/file
+))
+
