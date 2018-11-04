@@ -34,6 +34,36 @@ Support for Thrift transports
 TBD
 }
 
+@defproc[(transport-read-byte
+          [t transport?])
+         byte?]{
+TBD
+}
+  
+@defproc[(transport-read-bytes
+          [t transport?]
+          [amt exact-positive-integer?])
+         bytes?]{
+TBD
+}
+  
+@defproc[(transport-write-byte
+          [t transport?]
+          [b byte?])
+         void?]{
+TBD
+}
+  
+@defproc[(transport-write-bytes
+          [t transport?]
+          [bs bytes?]
+          [start-pos exact-nonnegative-integer? 0]
+          [end-pos exact-nonnegative-integer?])
+         void?]{
+TBD
+}
+  
+
 @defproc[(input-transport?
           [t transport?])
          boolean?]{
@@ -43,6 +73,12 @@ TBD
 @defproc[(output-transport?
           [t transport?])
          boolean?]{
+TBD
+}
+
+@defproc[(flush-transport
+          [t output-transport?])
+         void?]{
 TBD
 }
 

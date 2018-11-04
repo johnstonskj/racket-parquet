@@ -9,7 +9,7 @@
 
 (require rackunit
          ; ---------
-         "../main.rkt")
+         thrift)
 
 ;; ---------- Test Fixtures
 

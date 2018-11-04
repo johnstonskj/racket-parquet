@@ -5,7 +5,7 @@
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
 
-(require racket/contract)
+(require racket/contract racket/bool)
 
 (provide
  
@@ -20,12 +20,27 @@
   [transport-port
    (-> transport? port?)]
 
+  [transport-read-byte
+   (-> transport? byte?)]
+  
+  [transport-read-bytes
+   (-> transport? exact-positive-integer? bytes?)]
+  
+  [transport-write-byte
+   (-> transport? byte? void?)]
+  
+  [transport-write-bytes
+   (->* (transport? bytes?) (exact-nonnegative-integer? exact-nonnegative-integer?) void?)]
+  
   [input-transport?
    (-> transport? boolean?)]
   
   [output-transport?
    (-> transport? boolean?)]
 
+  [flush-transport
+   (-> output-transport? void?)]
+  
   [close-transport
    (-> transport? any/c)])
  
@@ -37,6 +52,22 @@
   (source
    port))
 
+(define (transport-read-byte tport)
+  (read-byte (transport-port tport)))
+  
+(define (transport-read-bytes tport amt)
+  (read-bytes amt (transport-port tport)))
+  
+(define (transport-write-byte tport b)
+  (write-byte (transport-port tport) b))
+  
+(define (transport-write-bytes tport bs [start 0] [end #f])
+  (cond
+    [(false? end)
+     (write-bytes bs (transport-port tport) start)]
+    [else
+     (write-bytes bs (transport-port tport) start end)]))
+  
 (define (input-transport? tport)
   (input-port? (transport-port tport)))
 
@@ -49,3 +80,6 @@
     [(input-port? p) (close-input-port p)]
     [(output-port? p) (close-output-port p)]
     [else (error "what kind of port is this? " p)]))
+
+(define (flush-transport tport)
+  (flush-output (transport-port tport)))

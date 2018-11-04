@@ -6,7 +6,7 @@ all: setup test
 
 clean:
 	find . -name compiled -type d | xargs rm -rf
-	find . -name "*.rkt~" -type f |xargs rm
+	find . -name "*~" -type f |xargs rm
 	rm -rf thrift/doc
 	rm -rf parquet/doc
 	rm -rf coverage

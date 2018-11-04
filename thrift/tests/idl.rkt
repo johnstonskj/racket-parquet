@@ -7,7 +7,8 @@
 
 ;; ---------- Requirements
 
-(require rackunit)
+(require rackunit
+         thrift)
 
 ;; ---------- Test Fixtures
 

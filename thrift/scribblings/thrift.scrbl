@@ -20,6 +20,8 @@ new language bindings}.
 
 @table-of-contents[]
 
+@include-section["architecture.scrbl"]
+
 @include-section["idl.scrbl"]
 
 @include-section["transport.scrbl"]

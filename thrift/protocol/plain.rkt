@@ -22,7 +22,8 @@
 
 ;; ---------- Requirements
 
-(require thrift)
+(require thrift/protocol/common
+         thrift/transport/common)
 
 ;; ---------- Implementation
 
@@ -43,9 +44,9 @@
    #f
    #f
    #f
-   (λ () (if (= (read-byte (transport-port transport)) 0) #f #t))
-   (λ () (read-byte (transport-port transport)))
-   (λ (count) (read-bytes count (transport-port transport)))
+   (λ () (if (= (transport-read-byte transport) 0) #f #t))
+   (λ () (transport-read-byte transport))
+   (λ (count) (transport-read-bytes transport count))
    (λ () (read-plain-integer transport 2))
    (λ () (read-plain-integer transport 4))
    (λ () (read-plain-integer transport 8))
@@ -56,7 +57,6 @@
 
 (define (read-plain-integer in width-in-bytes)
   (unless (input-transport? in) (error "transport must be open for input"))
-  (define p (if (port? in) in (transport-port in)))
-  (define bs (read-bytes width-in-bytes p))
+  (define bs (transport-read-bytes in width-in-bytes))
   (integer-bytes->integer bs #t #f 0 width-in-bytes))
 

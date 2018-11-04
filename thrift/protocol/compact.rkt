@@ -127,8 +127,8 @@
    (λ () (set-begin state transport))
    (λ () (set-end state transport))
    (λ () (read-boolean transport))
-   (λ () (read-byte (transport-port transport)))
-   (λ (num) (read-bytes num (transport-port transport)))
+   (λ () (transport-read-byte transport))
+   (λ (amt) (transport-read-bytes transport amt))
    (λ () (read-integer transport 16))
    (λ () (read-integer transport 32))
    (λ () (read-integer transport 64))
@@ -137,11 +137,11 @@
 
 (define (read-boolean transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
-  (read-byte (transport-port transport)))
+  (transport-read-byte transport))
 
 (define (read-integer transport width)
   (unless (input-transport? transport) (error "transport must be open for input"))
-  (define integer (zigzag->integer (read-varint (transport-port transport))))
+  (define integer (zigzag->integer (read-varint transport)))
   (cond
     [(<= (integer-length integer) width)
      integer]
@@ -149,12 +149,12 @@
 
 (define (read-double in)
   (unless (input-transport? transport) (error "transport must be open for input"))
-  (->fl (read-plain-integer (transport-port transport) 8)))
+  (->fl (read-plain-integer  transport 8)))
 
 (define (read-binary transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
-  (define byte-length (read-varint (transport-port transport)))
-  (read-bytes byte-length (transport-port transport)))
+  (define byte-length (read-varint transport))
+  (transport-read-bytes transport byte-length))
 
 (define (read-string transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
@@ -162,18 +162,18 @@
 
 (define (message-begin state transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
-  (define msg-protocol-id (read-byte (transport-port transport)))
+  (define msg-protocol-id (transport-read-byte transport))
   (unless (= protocol-id msg-protocol-id)
     (error 'read-message-header "invalid message protocol id: " msg-protocol-id))
-  (define msg-type-version (read-byte (transport-port transport)))
+  (define msg-type-version (transport-read-byte transport))
   (define msg-type (bitwise-and (arithmetic-shift msg-type-version -5) #b111))
   (unless (message-type? msg-type)
     (error 'read-message-header "invalid message type: " msg-type))
   (define msg-version (bitwise-and msg-type-version #b11111))
   (unless (= version msg-version)
     (error 'read-message-header "invalid message version: " msg-version))
-  (define msg-sequence-id (read-varint (transport-port transport)))
-  (define msg-method-name (read-string (transport-port transport)))
+  (define msg-sequence-id (read-varint transport))
+  (define msg-method-name (read-string transport))
   (unless (= (string-length msg-method-name) 0)
     (error 'read-message-header "method name not specified."))
   (log-thrift-debug "message name ~a, type ~s, sequence" msg-method-name msg-type msg-sequence-id)
@@ -199,8 +199,7 @@
 
 (define (field-begin state transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
-  (log-thrift-debug "field-begin @ ~a" (file-position (transport-port transport)))
-  (define head (read-byte (transport-port transport)))
+  (define head (transport-read-byte transport))
   (cond
     [(= head field-type-stop)
      (log-thrift-debug "<< (field-stop)")
@@ -211,7 +210,7 @@
      (log-thrift-debug (format ">> field header ~b -> ~b ~b" head field-id-delta field-type))
      (define field-id (cond
                         [(= field-id-delta 0)
-                         (zigzag->integer (read-plain-integer (transport-port transport) 2))]
+                         (zigzag->integer (read-plain-integer transport 2))]
                         [else
                          (+ (first (compact-state-last-field-id state)) field-id-delta)]))
      (when (= field-id 0)
@@ -235,8 +234,8 @@
 (define (map-begin state transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "map-begin")
-  (define size (read-varint  (transport-port transport)))
-  (define head-byte (read-byte (transport-port transport)))
+  (define size (read-varint  transport))
+  (define head-byte (transport-read-byte transport))
   (define key-type (bitwise-bit-field head-byte 4 8))
   (define element-type (bitwise-bit-field head-byte 0 4))
   (map key-type element-type size))
@@ -250,12 +249,12 @@
 (define (list-begin state transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "list-begin")
-  (define first-byte (read-byte (transport-port transport)))
+  (define first-byte (transport-read-byte transport))
   (define short-size (bitwise-bit-field first-byte 4 8))
   (define element-type (bitwise-bit-field first-byte 0 4))
   (define size (cond
                  [(= short-size 15)
-                  (read-varint (transport-port transport))]
+                  (read-varint transport)]
                  [else short-size]))
   (log-thrift-debug "<< reading list, ~a elements, of type ~s" size (integer->field-type element-type))
   (list-or-set element-type size))
@@ -309,13 +308,13 @@
        (subbytes bs 0 (add1 at))]
       [else (error "should not get here")])))
 
-(define (read-varint in)
-  (let next-byte ([num 0] [b (read-byte in)] [shift 0])
+(define (read-varint transport)
+  (let next-byte ([num 0] [b (transport-read-byte transport)] [shift 0])
     (define more (bitwise-and b 7bit-more))
     (define next-num (bitwise-ior num (arithmetic-shift (bitwise-and b 7bit-mask) shift)))
     (if (= more 0)
         next-num
-        (next-byte next-num (read-byte in) (+ shift 7)))))
+        (next-byte next-num (transport-read-byte transport) (+ shift 7)))))
 
 ;; ---------- Internal tests
 
