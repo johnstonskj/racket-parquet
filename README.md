@@ -22,7 +22,7 @@ This package provides an implementation of basic read (write coming eventually) 
 * `thrift/idl/language` - Racket syntax for defining IDLs in Racket.
 * `thrift/protocol/plain` - The plain binary protocol.
 * `thrift/protocol/compact` - The compact binary protocol.
-* thrift/transport/file` - A File transport.
+* `thrift/transport/file` - A File transport.
 
 ## Command Line Launchers
 
