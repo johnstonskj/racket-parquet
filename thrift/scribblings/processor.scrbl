@@ -3,6 +3,8 @@
 @(require racket/sandbox
           scribble/core
           scribble/eval
+          racket/contract
+          thrift
           (for-label racket/base
                      racket/contract
                      thrift))
@@ -11,6 +13,7 @@
 
 @(define example-eval (make-base-eval
                       '(require racket/string
+                                racket/contract
                                 thrift)))
 
 @;{============================================================================}
@@ -22,7 +25,7 @@ Support for Thrift protocol encodings
 @examples[ #:eval example-eval
 (require thrift)
 
-(define (my-processor in out)
+(define/contract (my-processor in out)
   transport-processor/c
   #f)
 ]
@@ -31,10 +34,12 @@ Support for Thrift protocol encodings
 @section[]{Processor Types}
 @defmodule[thrift/processor/common]
 
-@racketblock[
-(define transport-processor/c
-  (-> input-transport? output-transport? boolean?))
+@defthing[transport-processor/c
+          flat-contract?]{
+TBD @racket[(-> input-transport? output-transport? boolean?)]
+}
 
-(define protocol-processor/c
-  (-> decoder? encoder? boolean?))
-]
+@defthing[protocol-processor/c
+          flat-contract?]{
+TBD @racket[(-> decoder? encoder? boolean?)]
+}

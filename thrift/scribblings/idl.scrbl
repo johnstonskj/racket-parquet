@@ -169,5 +169,15 @@ TBD
 @subsection[]{Command-Line Launcher}
 
 @verbatim|{
-$ rthrift 
+$ rthrift -h
+rthrift [ <option> ... ] <file-path>
+ where <option> is one of
+  -v, --verbose : Compile with verbose messages
+  -V, --very-verbose : Compile with very verbose messages
+  -o <path>, --output-path <path> : Directory to write the output into
+  -f, --force-overwrite : Over-write any existing files
+  --help, -h : Show this help
+  -- : Do not treat any remaining argument as a switch (at this level)
+ Multiple single-letter switches can be combined after one `-'; for
+  example: `-h-' is the same as `-h --'
 }|

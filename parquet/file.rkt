@@ -30,7 +30,8 @@
          (prefix-in plain: thrift/protocol/plain)
          (prefix-in compact: thrift/protocol/compact)
          thrift/protocol/decoding
-         parquet/generated/parquet)
+         parquet/generated/parquet
+         parquet/generated/parquet-decode)
 
 ;; ---------- Internal types
 
@@ -93,11 +94,26 @@
 ;; ---------- Executable
 
 (module+ main
-  (require racket/logging rackunit thrift/private/logging)
+  (require racket/cmdline racket/logging rackunit thrift/private/logging)
+  
+  (define logging-level (make-parameter 'warning))
+
+  (define file-to-read
+    (command-line
+     #:program "rparquet"
+     #:once-each
+     [("-v" "--verbose") "Compile with verbose messages"
+                         (logging-level 'info)]
+     [("-V" "--very-verbose") "Compile with very verbose messages"
+                         (logging-level 'debug)]
+     #:args (file-path)
+     file-path))
+
+
   (with-logging-to-port
       (current-output-port)
     (λ ()
-      (define transport (open-input-parquet-file "../test-data/nation.impala.parquet"))
+      (define transport (open-input-parquet-file file-to-read))
       (define metadata (read-metadata transport))
       (displayln (format "File Metadata: ~a" (transport-source transport)))
       (displayln (format "  Version: ~a" (file-metadata-version metadata)))
@@ -181,4 +197,4 @@
 
       (close-parquet-file transport))
     #:logger thrift-logger
-    'info))
+    (logging-level)))

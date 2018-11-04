@@ -11,7 +11,8 @@
 ;; ---------- Requirements
 
 (require racket/contract
-         thrift)
+         thrift/protocol/common
+         thrift/transport/common)
 
 ;; ---------- Implementation (Types)
 
