@@ -28,7 +28,7 @@ This package provides an implementation of basic read (write coming eventually) 
 * `rparquet` - 
 * `rthrift` - 
 
-[![Apache Parquet](https://raw.githubusercontent.com/johnstonskj/racket-parquet/master/paquet/scribblings/parquet_logo.png)](https://thrift.apache.org)
+[![Apache Parquet](https://raw.githubusercontent.com/johnstonskj/racket-parquet/master/parquet/scribblings/parquet_logo.png)](https://thrift.apache.org)
 
 ## Example
 
