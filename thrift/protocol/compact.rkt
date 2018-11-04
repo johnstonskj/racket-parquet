@@ -291,21 +291,19 @@
 
 (define 7bit-more #b10000000)
 
-(define (write-varint n)
+(define (write-varint transport n)
   (unless (> n 0)
     (error "cannot 7bit encode negative numbers: " n))
   (define width (+ (quotient (integer-length n) 8) 2))
-  (define bs (make-bytes width))
-  (let next-byte ([num n] [at 0])
+  (let next-byte ([num n])
     (define value (bitwise-and num 7bit-mask))
     (define next-num (arithmetic-shift num -7))
     (cond 
       [(not (= next-num 0))
-       (bytes-set! bs at (bitwise-ior value 7bit-more))
-       (next-byte next-num (add1 at))]
+       (transport-write-byte transport (bitwise-ior value 7bit-more))
+       (next-byte next-num)]
       [(= next-num 0)
-       (bytes-set! bs at value)
-       (subbytes bs 0 (add1 at))]
+       (transport-write-byte transport value)]
       [else (error "should not get here")])))
 
 (define (read-varint transport)
@@ -320,7 +318,21 @@
 
 (module+ test
   (require racket/list
-           rackunit)
+           rackunit
+           thrift/transport/memory)
+
+  (define (write-test t v)
+    (define out (open-output-memory-transport))
+    (t out)
+    (define bytes (transport-output-bytes out))
+    (close-transport out)
+    (check-equal? bytes v))
+
+  (define (read-test t bytes v)
+    (define in (open-input-memory-transport bytes))
+    (define result (t in))
+    (close-transport in)
+    (check-equal? result v))
 
   (define zigzag-tests '((0 0) (-1 1) (1 2) (-2 3) (2 4)
                                (1023 2046) (-1025 2049)
@@ -334,19 +346,9 @@
     (check-equal? (zigzag->integer (integer->zigzag (first test))) (first test))
     (check-equal? (zigzag->integer (integer->zigzag (second test))) (second test)))
 
-;  (check-equal? (integer->varint 1) #"\1")
-;  (check-equal? (bytes->list (integer->varint #b1111111111))
-;                '(#b11111111 #b111 ))
-;
-;  (check-equal? (varint->integer (list->bytes '(#b11111111 #b111))) 1023)
-;  
-;  (check-equal? (zigzag->integer
-;                 (varint->integer
-;                  (integer->varint
-;                   (integer->zigzag 2147483647))))
-;                2147483647)
-;
-;  (check-equal? (varint->integer
-;                 (list->bytes '(#b11111111 #b11111111 #b11111111 #b11111111 #b11111)))
-;                8589934591)
-  )
+  (define varint-tests '((1 #"\1")
+                         (#b1111111111 #"\377\a")
+                         (8589934591 #"\377\377\377\377\37")))
+  (for ([test varint-tests])
+    (write-test (λ (t) (write-varint t (first test))) (second test))
+    (read-test (λ (t) (read-varint t)) (second test) (first test))))

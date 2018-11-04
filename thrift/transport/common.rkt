@@ -59,7 +59,7 @@
   (read-bytes amt (transport-port tport)))
   
 (define (transport-write-byte tport b)
-  (write-byte (transport-port tport) b))
+  (write-byte b (transport-port tport)))
   
 (define (transport-write-bytes tport bs [start 0] [end #f])
   (cond
