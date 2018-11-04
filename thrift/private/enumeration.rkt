@@ -77,19 +77,3 @@
      ;; TODO: this should be the workhorse version
      (error "unsupported format")]))
 
-;; ---------- Internal tests
-
-;(module+ test
-;  (require thrift/protocol/common)
-;  (define-enumeration my-enum (A B C))
-;  (my-enum? -1)
-;  (my-enum? 0)
-;  (my-enum? 1)
-;  (my-enum? 2)
-;  (my-enum? 3)
-;  (my-enum? 4)
-;  my-enum-A
-;  my-enum-B
-;  my-enum-C
-;  (integer->my-enum 2)
-;  my-enum/names)

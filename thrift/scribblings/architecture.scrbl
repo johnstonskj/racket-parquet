@@ -118,7 +118,11 @@ Racket implementation (if any).
                (list "HTTP Client"  "minimal-recommended" "not yet defined")
                (list "HTTP Server"  "other-recommended"   "not yet defined")
                (list "Pipes"        "other-recommended"   "not yet defined")
-               (list "NamedPipes"   "other-recommended"   "not yet defined"))]
+               (list "NamedPipes"   "other-recommended"   "not yet defined")
+               (list ""             ""                    "memory"))]
+
+The memory buffer transport (module @racket[thrift/transport/memory]) is primarily
+used for testing and allows reading/writing over byte buffers.
 
 @;{============================================================================}
 @section[]{Protocol Layer}

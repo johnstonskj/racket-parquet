@@ -36,18 +36,3 @@
                [(_ cls-var) #'#t]
                [else #'#f]))))]))
 
-;; ---------- Internal tests
-
-(module+ test
-  
-  (define-syntax-literals kw-required (required optional))
-  
-  (define-syntax-literals kw-container (list-of set-of map-of none))
-  
-  (displayln required)
-  (displayln optional)
-  ;(displayln kw-required/set)
-  ;(displayln kw-required/class)
-  (displayln (kw-required? required))
-  (displayln (kw-required? 'not-required)))
-
