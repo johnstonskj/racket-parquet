@@ -7,7 +7,7 @@
 @title[#:version "1.0"]{Package parquet.}
 @author[(author+email "Simon Johnston" "johnstonskj@gmail.com")]
 
-@image["scribblings/parquet_logo.png"] This package provides the ability to
+This package provides the ability to
 read (and eventually write) @hyperlink["https://parquet.apache.org/"]{Apache Parquet}
 formatted files. Such files are becoming the mainstay of cloud-native big data
 systems, especially the @hyperlink["https://hadoop.apache.org/"]{Apache Hadoop}
@@ -20,10 +20,12 @@ support for this is described in @other-doc['(lib "thrift/scribblings/thrift.scr
 
 @table-of-contents[]
 
-@include-section["_parquet.scrbl"]
+@include-section["generated-parquet.scrbl"]
 
 @include-section["file.scrbl"]
 
 @section{License}
 
 @verbatim|{|@file->string["../LICENSE"]}|
+
+@image["scribblings/parquet_logo.png"] 

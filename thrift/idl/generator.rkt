@@ -11,7 +11,7 @@
 
  (contract-out
   [process-file
-   (->* (string? string?) (boolean?) void?)]))
+   (->* (string? string?) (string? boolean?) void?)]))
 
 ;; ---------- Requirements
 
@@ -26,11 +26,12 @@
 
 ;; ---------- Implementation
 
-(define (process-file file-path output-path [over-write? #f])
+(define (process-file file-path output-path [module-prefix ""] [over-write? #f])
   (define in (open-input-source file-path))
   (log-thrift-debug (~a in))
   (define out (output #f #f #f #f))
   (define namespace #f)
+  (define module #f)
   (define enums '())
   (define structs '())
   
@@ -42,6 +43,8 @@
          (unless (equal? namespace #f)
            (error "cannot redefine namespace"))
          (set! namespace (syntax->datum (second (syntax-e syn))))
+         (set! module (if (equal? module-prefix "") namespace
+                          (format "~a/~a" module-prefix namespace)))
          (set! out
                (output
                 (open-output-source (format "~a.rkt" namespace) output-path over-write?)
@@ -64,7 +67,7 @@
                             (list "racket/list"
                                   "racket/set"
                                   "thrift"
-                                  (format "\"~a.rkt\"" namespace)))
+                                  (~a module)))
          (write-file-header (output-decoders out)
                             file-path
                             namespace
@@ -72,11 +75,12 @@
                                   "racket/set"
                                   "thrift"
                                   "thrift/protocol/decoding"
-                                  (format "\"~a.rkt\"" namespace)))
+                                  (~a module)))
          (write-scribble-file-header (output-docs out)
                                      file-path
                                      namespace
-                                     (list (format "\"~a.rkt\"" namespace)))
+                                     module
+                                     (list (~a namespace)))
          (write-logging (output-defines out) namespace)]
         
         [(equal? syntax-form 'define-thrift-enum)
@@ -106,6 +110,9 @@
       (next (read-next-syntax file-path in))))
   
   (write-decode-fixups (output-decoders out) structs)
+
+  (write-enum-helper-doc (output-docs out) namespace enums)
+  (write-decode-doc (output-docs out) namespace module enums structs)
 
   (log-thrift-debug "Closing file ports")
   (close-input-port in)
@@ -179,7 +186,7 @@
   (write-enum (output-defines out) ns enum-id name-values)
   (write-enum-decode (output-decoders out) ns enum-id name-values)
   (write-enum-doc (output-docs out) ns enum-id name-values)
-  (syntax->datum #'enum-id))
+  enum-id)
 
 (define (parse-struct syn ns out)
   (syntax-parse syn
@@ -248,7 +255,7 @@
   (displayln (format "(require ~a)" (string-join required-modules " ")) out)
   (newline out))
 
-(define (write-scribble-file-header out in-file-path ns required-modules)
+(define (write-scribble-file-header out in-file-path ns module required-modules)
   (displayln "#lang scribble/manual" out)
   (displayln "@;" out)
   (displayln (format "@; Generated namespace ~a" ns) out)
@@ -261,21 +268,13 @@
   (displayln  "@(require racket/sandbox scribble/core scribble/eval" out)
   (displayln (format "          (for-label ~a))" (string-join required-modules " ")) out)
   (newline out)
-  (displayln (format "@title[]{Thrift Namespace ~a}" ns) out)
+  (displayln (format "@title[]{Generated Thrift Namespace ~a}" ns) out)
+  (displayln (format "@defmodule[~a]" module) out)
   (newline out))
 
 (define (write-logging out ns)
   (displayln (format "(define-logger ~a)" ns) out)
   (displayln (format "(current-logger ~a-logger)" ns) out)
-  (newline out))
-
-(define (write-enum-doc out ns id values)
-  (displayln (format "@defproc[(~a? [v any/c]) boolean?]" id) out)
-  (newline out)
-  (displayln "@deftogether[(" out)
-  (for ([vs values])
-    (displayln (format "  @defthing[~a:~a ~a?]" id (car vs) id) out))
-  (displayln ")]" out)
   (newline out))
 
 (define (write-enum out ns id values)
@@ -312,6 +311,26 @@
   (displayln (format "  (decode-a-list decoder ~a/decode))" id) out)
   (newline out))
 
+(define (write-enum-doc out ns id values)
+  (displayln (format "@defproc[(~a? [v any/c]) boolean?]" id) out)
+  (newline out)
+  (displayln "@deftogether[(" out)
+  (for ([vs values])
+    (displayln (format "  @defthing[~a:~a ~a?]" id (car vs) id) out))
+  (displayln ")]" out)
+  (newline out))
+
+(define (write-enum-helper-doc out ns enum-ids)
+  (displayln "@section[]{Enumeration Conversion}" out)
+  (newline out)
+  (for ([id enum-ids])
+    (displayln "@deftogether[(" out)
+    (displayln (format "  @defproc[(~a->symbol [e ~a?]) symbol?]" id id) out)
+    (displayln (format "  @defproc[(~a->integer [e ~a?]) exact-nonnegative-integer?]" id id) out)
+    (displayln (format "  @defproc[(integer->~a [n exact-nonnegative-integer?]) ~a?]" id id) out)
+    (displayln ")]" out)
+    (newline out)))
+
 (define (decoder-function container type)
   (define suffix
     (cond
@@ -326,27 +345,37 @@
     [else
      (format "'~a/decode~a" type suffix)]))
 
+(define (doc-type t)
+  (cond
+    [(false? t) #f]
+    [(member t '(type-bool type-byte type-int16 type-int32 type-int64 type-double type-string type-binary))
+     t]
+    [else
+     (string->symbol (string-append (symbol->string t) "?"))]))
+
 (define (write-struct-doc out ns id fields)
   (displayln (format "@defstruct*[~a (" id) out)
   (for ([f fields])
+    ;; TODO: add "?" suffix on types!
+    (define major-type (doc-type (thrift-field-major-type f)))
     (cond
       [(equal? (thrift-field-container f) container-type-list-of)
        (displayln (format "             [~a (listof ~a)]"
                           (thrift-field-name f)
-                          (thrift-field-major-type f)) out)]
+                          major-type) out)]
       [(equal? (thrift-field-container f) container-type-set-of)
        (displayln (format "             [~a (setof ~a)]"
                           (thrift-field-name f)
-                          (thrift-field-major-type f)) out)]
+                          major-type) out)]
       [(equal? (thrift-field-container f) container-type-map-of)
        (displayln (format "             [~a (hash/c ~a ~a)]"
                           (thrift-field-name f)
-                          (thrift-field-major-type f)
+                          major-type
                           (thrift-field-minor-type f)) out)]
       [else
        (displayln (format "             [~a ~a]"
                           (thrift-field-name f)
-                          (thrift-field-major-type f)) out)]))
+                          major-type) out)]))
   (displayln ")]" out)
   (newline out))
 
@@ -388,7 +417,25 @@
   (displayln (format "  (list->set (decode-a-list decoder ~a/decode)))" id) out)
   (newline out))
 
-(define (write-decode-fixups out ids)
+(define (write-decode-doc out ns module enum-ids struct-ids)
+  (displayln "@section[]{Type Decoders}" out)
+  (displayln (format "@defmodule[~a-decode]" module) out)
+  (newline out)
+  (for ([id enum-ids])
+    (displayln "@deftogether[(" out)
+    (displayln (format "  @defproc[(~a/decode [d decoder?]) ~a?]" id id) out)
+    (displayln (format "  @defproc[(~a/decode-list [d decoder?]) (listof ~a?)]" id id) out)
+    (displayln ")]" out)
+    (newline out))
+  (for ([id struct-ids])
+    (displayln "@deftogether[(" out)
+    (displayln (format "  @defproc[(~a/decode [d decoder?]) ~a?]" id id) out)
+    (displayln (format "  @defproc[(~a/decode-list [d decoder?]) (listof ~a?)]" id id) out)
+    (displayln (format "  @defproc[(~a/decode-set [d decoder?]) (setof ~a?)]" id id) out)
+    (displayln ")]" out)
+    (newline out)))
+
+(define (write-decode-fixups out struct-ids)
   (displayln "(define-namespace-anchor anchor)" out)
   (displayln "(define this-namespace (namespace-anchor->namespace anchor))" out)
   (newline out)
@@ -410,7 +457,7 @@
   (displayln "    (values (thrift-field-id field) field)))" out)
   (newline out)
 
-  (for ([id ids])
+  (for ([id struct-ids])
     (displayln (format "(fixup-schema ~a/schema)" id) out)
     (displayln (format "(define ~a/reverse-schema (make-reverse-schema ~a/schema))" id id) out)
     (newline out)))
@@ -419,6 +466,7 @@
   (require racket/cmdline racket/logging)
 
   (define overwrite-mode (make-parameter #f))
+  (define module-prefix (make-parameter ""))
   (define output-path (make-parameter "."))
   (define logging-level (make-parameter 'warning))
 
@@ -432,6 +480,8 @@
                          (logging-level 'debug)]
      [("-o" "--output-path") path "Directory to write the output into"
                          (output-path path)]
+     [("-m" "--module-prefix") module "Prefix generated modules with a module path"
+                         (module-prefix module)]
      [("-f" "--force-overwrite") "Over-write any existing files"
                          (overwrite-mode #t)]
      #:args (file-path)
@@ -440,6 +490,6 @@
   (with-logging-to-port
       (current-output-port)
     (λ ()
-      (process-file file-to-compile (output-path) (overwrite-mode)))
+      (process-file file-to-compile (output-path) (module-prefix) (overwrite-mode)))
     #:logger thrift-logger
     (logging-level)))

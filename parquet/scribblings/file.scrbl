@@ -61,3 +61,19 @@ TBD
          file-metadata?]{
 TBD
 }
+
+@;{============================================================================}
+@section[]{Command Line Launcher}
+
+TBD
+
+@verbatim|{
+rparquet [ <option> ... ] <file-path>
+ where <option> is one of
+  -v, --verbose : Compile with verbose messages
+  -V, --very-verbose : Compile with very verbose messages
+  --help, -h : Show this help
+  -- : Do not treat any remaining argument as a switch (at this level)
+ Multiple single-letter switches can be combined after one `-'; for
+  example: `-h-' is the same as `-h --'
+}|

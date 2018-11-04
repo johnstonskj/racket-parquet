@@ -160,7 +160,8 @@ TBD
 @defmodule[thrift/idl/generator]
 
 @defproc[(process-file
-          [file-path string?]
+          [file-path string? "."]
+          [module-prefix string? ""]
           [over-write? boolean? #f])
          void?]{
 TBD
@@ -169,12 +170,12 @@ TBD
 @subsection[]{Command-Line Launcher}
 
 @verbatim|{
-$ rthrift -h
 rthrift [ <option> ... ] <file-path>
  where <option> is one of
   -v, --verbose : Compile with verbose messages
   -V, --very-verbose : Compile with very verbose messages
   -o <path>, --output-path <path> : Directory to write the output into
+  -m <module>, --module-prefix <module> : Prefix generated modules with a module path
   -f, --force-overwrite : Over-write any existing files
   --help, -h : Show this help
   -- : Do not treat any remaining argument as a switch (at this level)

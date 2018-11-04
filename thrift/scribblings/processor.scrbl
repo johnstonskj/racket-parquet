@@ -20,7 +20,7 @@
 
 @title[]{Thrift Processor Support}
 
-Support for Thrift protocol encodings
+Support for Thrift processor contracts.
 
 @examples[ #:eval example-eval
 (require thrift)
