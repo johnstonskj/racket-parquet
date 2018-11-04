@@ -45,6 +45,9 @@
          (set! namespace (syntax->datum (second (syntax-e syn))))
          (set! module (if (equal? module-prefix "") namespace
                           (format "~a/~a" module-prefix namespace)))
+         (displayln (format "rthrift: generating files for namespace ~a (module ~a)"
+                            namespace
+                            module))
          (set! out
                (output
                 (open-output-source (format "~a.rkt" namespace) output-path over-write?)
