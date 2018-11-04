@@ -27,7 +27,8 @@
 ;; ---------- Implementation
 
 (define (process-file file-path output-path [over-write? #f])
-  (define in (open-input-file file-path))
+  (define in (open-input-source file-path))
+  (log-thrift-debug (~a in))
   (define out (output #f #f #f #f))
   (define namespace #f)
   (define enums '())
@@ -43,27 +44,35 @@
          (set! namespace (syntax->datum (second (syntax-e syn))))
          (set! out
                (output
-                (open-output-file (format "_~a.rkt" namespace))
-                (open-output-file (format "_~a-encode.rkt" namespace))
-                (open-output-file (format "_~a-decode.rkt" namespace))
-                (open-output-file (format "_~a.scrbl" namespace))))
+                (open-output-source (format "~a.rkt" namespace) output-path over-write?)
+                (open-output-source (format "~a-encode.rkt" namespace) output-path over-write?)
+                (open-output-source (format "~a-decode.rkt" namespace) output-path over-write?)
+                (open-output-source (format "~a.scrbl" namespace) output-path over-write?)))
+         (log-thrift-debug "Writing file headers")
          (write-file-header (output-defines out)
                             file-path
                             namespace
-                            (map ~a '(racket/logging
-                                      racket/match
-                                      racket/list
-                                      racket/set
-                                      thrift
-                                      thrift/protocol/decoding)))
+                            (list "racket/logging"
+                                  "racket/match"
+                                  "racket/list"
+                                  "racket/set"
+                                  "thrift"
+                                  "thrift/protocol/decoding"))
          (write-file-header (output-encoders out)
                             file-path
                             namespace
-                            (list (format "\"~a.rkt\"" namespace)))
+                            (list "racket/list"
+                                  "racket/set"
+                                  "thrift"
+                                  (format "\"~a.rkt\"" namespace)))
          (write-file-header (output-decoders out)
                             file-path
                             namespace
-                            (list (format "\"~a.rkt\"" namespace)))
+                            (list "racket/list"
+                                  "racket/set"
+                                  "thrift"
+                                  "thrift/protocol/decoding"
+                                  (format "\"~a.rkt\"" namespace)))
          (write-scribble-file-header (output-docs out)
                                      file-path
                                      namespace
@@ -85,7 +94,7 @@
         [(or (equal? syntax-form 'provide)
              (equal? syntax-form 'require)
              (equal? syntax-form 'define))
-         (void)] ; ignore
+         (log-thrift-debug "Ignoring syntax form ~a" syntax-form)]
         
         [else
          (raise-contract-error syntax-form
@@ -96,12 +105,31 @@
       
       (next (read-next-syntax file-path in))))
   
-  (write-struct-fixups (output-defines out) structs)
-  
-  (close-output-port (output-defines out))
-  (close-output-port (output-encoders out))
-  (close-output-port (output-decoders out))
-  (close-output-port (output-docs out)))
+  (write-decode-fixups (output-decoders out) structs)
+
+  (log-thrift-debug "Closing file ports")
+  (close-input-port in)
+  (for ([p (struct->list out)])
+    (close-output-port p)))
+
+;; ---------- Internal procedures (file handling)
+
+(define (open-input-source file-path)
+  (cond
+    [(file-exists? file-path)
+     (log-thrift-info "Opening input file `~a`" file-path)
+     (open-input-file file-path #:mode 'text)]
+    [else (error (format "File ~a does not exist" file-path))]))
+
+(define (open-output-source base-name output-path over-write?)
+  (cond
+    [(directory-exists? output-path)
+     (log-thrift-info "Opening output source `~a` in `~a`" base-name output-path)
+     (define file-path (simplify-path (build-path output-path base-name)))
+     (define exists-flag (if over-write? 'replace 'error ))
+     (log-thrift-debug "file ~a, exists '~a" file-path exists-flag) 
+     (open-output-file file-path #:mode 'text #:exists exists-flag)]
+    [else (error (format "Directory ~a does not exist" output-path))]))
 
 ;; ---------- Internal procedures (parsing)
 
@@ -109,14 +137,19 @@
   (defines
    encoders
    decoders
-   docs))
+   docs)
+  #:transparent)
 
 (define (read-next-syntax src in)
   (with-handlers ([exn:fail:read?
-                   (λ (e) (when (string=? (exn-message e) "read-syntax: `#lang` not enabled")
-                            (read-next-syntax src in) ; skip the actual language part
-                            (read-next-syntax src in)))])
-    (read-syntax src in)))
+                   (λ (e)
+                     (cond
+                       [(string-suffix? (exn-message e) "read-syntax: `#lang` not enabled")
+                        (read-next-syntax src in) ; skip the actual language part
+                        (read-next-syntax src in)]
+                       [else (raise e)]))])
+    (define syn (read-syntax src in))
+    syn))
 
 (define (syntax-head syn)
   (syntax->datum (car (syntax-e syn))))
@@ -131,17 +164,20 @@
     (syntax-parse syn
       #:context 'enum-specification
       [(_ enum-id:id (~optional start:nat #:defaults ([start #'0])) ((~seq idents:id ...)))
+       (log-thrift-info "Parsing enum ~a" (syntax->datum #'enum-id))
        (define names (syntax->list #'(idents ...)))
        (define start-num (syntax->datum #'start))
        (values (syntax->datum #'enum-id)
                (for/list ([name names] [v (range start-num (+ (length names) start-num))])
                  (cons (syntax->datum name) v)))]
       [(_ enum-id:id (~optional start:nat #:defaults ([start #'0])) ((~seq idents:name-value ...)))
+       (log-thrift-info "Parsing enum ~a" (syntax->datum #'enum-id))
        (values (syntax->datum #'enum-id)
                (for/list ([name (syntax->list #'(idents.name ...))]
                           [v (syntax->list #'(idents.value ...))])
                  (cons (syntax->datum name) (syntax->datum v))))]))
   (write-enum (output-defines out) ns enum-id name-values)
+  (write-enum-decode (output-decoders out) ns enum-id name-values)
   (write-enum-doc (output-docs out) ns enum-id name-values)
   (syntax->datum #'enum-id))
 
@@ -149,6 +185,7 @@
   (syntax-parse syn
     #:context 'struct-specification
     [(_ struct-id:id ((~seq field-details ...)))
+     (log-thrift-info "Parsing struct ~a" (syntax->datum #'struct-id))
      (define field-list 
        (for/list ([a-field (syntax->list #'(field-details ...))])
          (define details (map syntax->datum (syntax-e a-field)))
@@ -191,6 +228,7 @@
          ;; TODO: validate.
          (apply thrift-field parsed)))
      (write-struct (output-defines out) ns (syntax->datum #'struct-id) field-list)
+     (write-struct-decode (output-decoders out) ns (syntax->datum #'struct-id) field-list)
      (write-struct-doc (output-docs out) ns (syntax->datum #'struct-id) field-list)
      (syntax->datum #'struct-id)]))
 
@@ -220,7 +258,7 @@
   (displayln "@;" out)
   (newline out)
   (newline out)
-  (displayln  "@(require racket/sandbox scribble/code scribble/eval" out)
+  (displayln  "@(require racket/sandbox scribble/core scribble/eval" out)
   (displayln (format "          (for-label ~a))" (string-join required-modules " ")) out)
   (newline out)
   (displayln (format "@title[]{Thrift Namespace ~a}" ns) out)
@@ -265,6 +303,9 @@
       (format "    [~a ~a:~a]" (cdr vs) id (car vs))))
   (displayln (string-join patterns "\n") out)
   (displayln (format "    [else (error \"unknown value for enum ~a: \" n)]))" id) out)
+  (newline out))
+
+(define (write-enum-decode out ns id values)
   ;; decoder function
   (displayln (format "(define (~a/decode decoder) (integer->~a (type-int32/decode decoder)))" id id) out)
   (displayln (format "(define (~a/decode-list decoder)" id) out)
@@ -332,7 +373,9 @@
                fields)
               "\n") out)
   (displayln "))" out)
+  (newline out))
 
+(define (write-struct-decode out ns id fields)
   (displayln (format "(define (~a/decode decoder)" id) out)
   (displayln (format "  (log-~a-info \"decoding ~a from thrift\")" ns id) out)
   (displayln (format "  (decode-a-struct decoder ~a ~a/reverse-schema))" id id) out)
@@ -345,7 +388,7 @@
   (displayln (format "  (list->set (decode-a-list decoder ~a/decode)))" id) out)
   (newline out))
 
-(define (write-struct-fixups out ids)
+(define (write-decode-fixups out ids)
   (displayln "(define-namespace-anchor anchor)" out)
   (displayln "(define this-namespace (namespace-anchor->namespace anchor))" out)
   (newline out)
@@ -376,16 +419,19 @@
   (require racket/cmdline racket/logging)
 
   (define overwrite-mode (make-parameter #f))
+  (define output-path (make-parameter "."))
   (define logging-level (make-parameter 'warning))
 
   (define file-to-compile
     (command-line
-     #:program "compiler"
+     #:program "rthrift"
      #:once-each
      [("-v" "--verbose") "Compile with verbose messages"
                          (logging-level 'info)]
      [("-V" "--very-verbose") "Compile with very verbose messages"
                          (logging-level 'debug)]
+     [("-o" "--output-path") path "Directory to write the output into"
+                         (output-path path)]
      [("-f" "--force-overwrite") "Over-write any existing files"
                          (overwrite-mode #t)]
      #:args (file-path)
@@ -394,6 +440,6 @@
   (with-logging-to-port
       (current-output-port)
     (λ ()
-      (process-file file-to-compile (overwrite-mode)))
+      (process-file file-to-compile (output-path) (overwrite-mode)))
     #:logger thrift-logger
     (logging-level)))
