@@ -1,6 +1,6 @@
 #lang racket/base
 ;;
-;; thrift - protocol/plain.
+;; thrift - protocol/binary.
 ;;   Support for Thrift encoding
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).

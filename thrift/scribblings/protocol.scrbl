@@ -19,11 +19,6 @@
 
 Support for Thrift protocol encodings
 
-@examples[ #:eval example-eval
-(require thrift)
-; add more here.
-]
-
 @;{============================================================================}
 @section[]{Protocol Common}
 @defmodule[thrift/protocol/common]
