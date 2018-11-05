@@ -15,13 +15,7 @@
    (-> string? transport?)]
 
   [open-output-file-transport
-   (-> string? transport?)]
-
-  [transport-file-size
-   (-> transport? exact-nonnegative-integer?)]
-
-  [transport-file-position
-   (->* (transport?) (exact-nonnegative-integer?) any/c)]))
+   (-> string? transport?)]))
 
 ;; ---------- Requirements
 
@@ -36,21 +30,6 @@
 
 (define (open-output-file-transport file-path)
   (open-file-transport file-path 'output))
-
-(define (transport-file-size tport)
-  (cond
-    [(input-transport? tport)
-     (file-size (transport-source tport))]
-    [else (error "transport must be opened for input")]))
-
-(define (transport-file-position tport [new-pos #f])
-  (cond
-    [(input-transport? tport)
-     (cond
-       [(false? new-pos)
-        (file-position (transport-port tport))]
-       [else (file-position (transport-port tport) new-pos)])]
-    [else (error "transport must be opened for input")]))
 
 ;; ---------- Internal procedures
 
@@ -72,5 +51,5 @@
           (open-output-file file-path #:mode 'binary #:exists 'can-update)]))
      (file-stream-buffer-mode port 'block)
      
-     (transport file-path port)]))
+     (transport "file" file-path port)]))
 

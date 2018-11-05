@@ -1,11 +1,9 @@
 #lang racket/base
 ;;
-;; thrift - protocol/binary.
+;; thrift - protocol/sexpression.
 ;;   Support for Thrift encoding
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
-
-;; https://github.com/apache/thrift/blob/master/doc/specs/thrift-binary-protocol.md
 
 (require racket/contract)
 
@@ -36,21 +34,18 @@
 
 (define-enumeration field-type 0
   (stop
-   unused-1
    boolean
    byte
    double
-   unused-5
    int16
-   unused-7
    int32
-   unused-9
    int64
    string
    structure
    map
    set
    list))
+
 ;; ---------- Implementation
 
 (define (get-protocol-encoder transport)
@@ -58,7 +53,7 @@
 
 (define (get-protocol-decoder transport)
   (decoder
-   "binary"
+   "s-expression"
    (λ () (message-begin transport))
    (λ () (no-op-decoder "message-end"))
    (λ () (no-op-decoder "struct-begin"))

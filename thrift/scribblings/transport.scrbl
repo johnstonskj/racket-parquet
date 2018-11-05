@@ -29,7 +29,8 @@ Support for Thrift transports
 @defmodule[thrift/transport/common]
 
 @defstruct*[transport
-            ([source string?]
+            ([name string?]
+             [source string?]
              [port port?])]{
 TBD
 }
@@ -63,6 +64,21 @@ TBD
 TBD
 }
   
+@defproc[(transport-size
+          [t transport?])
+         (or/c exact-nonnegative-integer? eof-object?)]{
+TBD
+}
+
+@defproc*[([(transport-read-position
+             [t transport?])
+            (or/c exact-nonnegative-integer? eof-object?)]
+           [(transport-read-position
+             [t transport?]
+             [pos exact-nonnegative-integer?])
+            (or/c exact-nonnegative-integer? eof-object?)])]{
+TBD
+}
 
 @defproc[(input-transport?
           [t transport?])
@@ -105,18 +121,24 @@ TBD
 TBD
 }
 
-@defproc[(transport-file-size
-          [t transport?])
-         exact-nonnegative-integer?]{
+@;{============================================================================}
+@section[]{In-Memory Transport}
+@defmodule[thrift/transport/memory]
+
+@defproc[(open-input-memory-transport
+          [buffer bytes?])
+         transport?]{
 TBD
 }
 
-@defproc*[([(transport-file-position
-             [t transport?])
-            any/c]
-           [(transport-file-position
-             [t transport?]
-             [pos exact-nonnegative-integer?])
-            any/c])]{
+@defproc[(open-output-memory-transport)
+         transport?]{
 TBD
 }
+
+@defproc[(transport-output-bytes
+          [t transport?])
+         bytes?]{
+TBD
+}
+

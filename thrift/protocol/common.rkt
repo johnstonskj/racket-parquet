@@ -28,7 +28,8 @@
   (element-type length) #:transparent)
 
 (struct encoder
-  (message-begin
+  (name
+   message-begin
    message-end
    struct-begin
    struct-end
@@ -51,7 +52,8 @@
    string))
 
 (struct decoder
-  (message-begin
+  (name
+   message-begin
    message-end
    struct-begin
    struct-end

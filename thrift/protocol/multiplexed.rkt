@@ -17,25 +17,53 @@
    (-> encoder? string? (or/c encoder? #f))]
   
   [get-protocol-decoder
-   (-> decoder? string? (or/c decoder? #f))]))
+   (-> decoder? string? (or/c decoder? #f))])
+
+ (struct-out mux-message-header))
 
 ;; ---------- Requirements
 
 (require racket/flonum
+         racket/list
+         racket/string
          thrift/protocol/common
-         thrift/transport/common
-         thrift/private/enumeration
-         thrift/private/protocol
          thrift/private/logging)
 
 ;; ---------- Implementation
 
+(define service-name-separator (make-parameter ":"))
+
+(struct mux-message-header message-header
+  (service-name) #:transparent)
+
 (define (get-protocol-encoder wrapped service-name)
-  #f)
+  (encoder
+   "multiplexed"
+   (λ (header) (encode-mux-message-begin header wrapped service-name))
+   (λ () ((encoder-message-end wrapped)))
+   (λ () ((encoder-struct-begin wrapped)))
+   (λ () ((encoder-struct-end wrapped)))
+   (λ (header) ((encoder-field-begin wrapped) header))
+   (λ () ((encoder-field-end wrapped)))
+   (λ (header) ((encoder-map-begin wrapped) header))
+   (λ () ((encoder-map-end wrapped)))
+   (λ (header) ((encoder-list-begin wrapped) header))
+   (λ () ((encoder-list-end wrapped)))
+   (λ (header) ((encoder-set-begin wrapped) header))
+   (λ () ((encoder-set-end wrapped)))
+   (λ () ((encoder-boolean wrapped)))
+   (λ () ((encoder-byte wrapped)))
+   (λ () ((encoder-bytes wrapped)))
+   (λ () ((encoder-int16 wrapped)))
+   (λ () ((encoder-int32 wrapped)))
+   (λ () ((encoder-int64 wrapped)))
+   (λ () ((encoder-double wrapped)))
+   (λ () ((encoder-string wrapped)))))
 
 (define (get-protocol-decoder wrapped service-name)
   (decoder
-   (λ () (message-begin transport))
+   "multiplexed"
+   (λ () (decode-mux-message-begin wrapped))
    (λ () ((decoder-message-end wrapped)))
    (λ () ((decoder-struct-begin wrapped)))
    (λ () ((decoder-struct-end wrapped)))
@@ -47,14 +75,40 @@
    (λ () ((decoder-list-end wrapped)))
    (λ () ((decoder-set-begin wrapped)))
    (λ () ((decoder-set-end wrapped)))
-   (λ () (if (= (transport-read-byte transport) 0) #f #t))
-   (λ () (transport-read-byte transport))
-   (λ () (read-binary transport))
-   (λ () (read-plain-integer transport 2))
-   (λ () (read-plain-integer transport 4))
-   (λ () (read-plain-integer transport 8))
-   #f
-   (λ () (bytes->string/utf-8 (read-binary transport)))))
+   (λ () ((decoder-boolean wrapped)))
+   (λ () ((decoder-byte wrapped)))
+   (λ () ((decoder-bytes wrapped)))
+   (λ () ((decoder-int16 wrapped)))
+   (λ () ((decoder-int32 wrapped)))
+   (λ () ((decoder-int64 wrapped)))
+   (λ () ((decoder-double wrapped)))
+   (λ () ((decoder-string wrapped)))))
 
 ;; ---------- Internal procedures
 
+(define (encode-mux-message-begin msg-header wrapped  service-name)
+  (define new-name (format "~a~a~a"
+                           service-name
+                           (service-name-separator)
+                           (message-header-name msg-header)))
+  ((decoder-message-end wrapped)
+   (struct-copy message-header
+                msg-header
+                [name new-name])))
+
+(define (decode-mux-message-begin wrapped)
+  (define msg-header ((decoder-message-end wrapped)))
+  (define names (string-split (message-header-name msg-header) (service-name-separator)))
+  (define-values (service method)
+    (cond
+      [(= (length names) 1)
+       (values "" (first names))]
+      [(= (length names) 2)
+       (values (first names) (second names))]
+      [else (error "could not decode message name")]))
+  (mux-message-header
+   method
+   (message-header-type msg-header)
+   (message-header-sequence-id msg-header)
+   service))
+   

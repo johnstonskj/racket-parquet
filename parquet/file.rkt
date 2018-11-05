@@ -49,7 +49,7 @@
 (define (open-input-parquet-file file-path)
   (log-parquet-info "opening Parquet file: ~a for reading" file-path)
   (define transport (open-input-file-transport file-path))
-  (define size (transport-file-size transport))
+  (define size (transport-size transport))
   (cond
     [(not (> size minimum-file-length))
      (error "file too small, size:" size)]
@@ -62,7 +62,7 @@
      (unless (equal? header-magic magic-number)
        (error "invalid file format, no initial magic number. Bytes: " header-magic))
      
-     (transport-file-position transport (- size magic-length))
+     (transport-read-position transport (- size magic-length))
      (define footer-magic ((decoder-bytes plain) magic-length))
      (unless (equal? header-magic magic-number)
        (error "invalid file format, no trailing magic number. Bytes: " footer-magic))
@@ -76,17 +76,17 @@
 (define (read-metadata transport)
   (log-parquet-info "attempting to read metadata with compact decoder")
 
-  (define size (transport-file-size transport))
+  (define size (transport-size transport))
   (define plain (plain:get-protocol-decoder transport))
 
-  (transport-file-position transport (- size magic-length int32-length))
+  (transport-read-position transport (- size magic-length int32-length))
   (define footer-length ((decoder-int32 plain)))
   (log-parquet-debug "Footer length: ~a" footer-length)
   (unless (< footer-length size)
     (error "invalid file format, footer length not in file: " footer-length))
   
-  (transport-file-position transport (- size footer-length magic-length int32-length))
-  (log-parquet-debug "Reading FileMetadata at: ~a" (transport-file-position transport))
+  (transport-read-position transport (- size footer-length magic-length int32-length))
+  (log-parquet-debug "Reading FileMetadata at: ~a" (transport-read-position transport))
   
   (define compact (compact:get-protocol-decoder transport))
   (file-metadata/decode compact))

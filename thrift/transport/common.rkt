@@ -32,6 +32,12 @@
   [transport-write-bytes
    (->* (transport? bytes?) (exact-nonnegative-integer? exact-nonnegative-integer?) void?)]
   
+  [transport-size
+   (-> transport? (or/c exact-nonnegative-integer? eof-object?))]
+
+  [transport-read-position
+   (->* (transport?) (exact-nonnegative-integer?) (or/c exact-nonnegative-integer? eof-object?))]
+
   [input-transport?
    (-> transport? boolean?)]
   
@@ -49,7 +55,8 @@
 ;; ---------- Implementation (Types)
 
 (struct transport
-  (source
+  (name
+   source
    port))
 
 (define (transport-read-byte tport)
@@ -68,6 +75,24 @@
     [else
      (write-bytes bs (transport-port tport) start end)]))
   
+(define (transport-size tport)
+  (cond
+    [(input-transport? tport)
+     (file-size (transport-source tport))]
+    [else eof]))
+
+(define (transport-read-position tport [new-pos #f])
+  (cond
+    [(input-transport? tport)
+     (cond
+       [(false? new-pos)
+        (file-position (transport-port tport))]
+       [else
+        (file-position (transport-port tport) new-pos)
+        new-pos])]
+    [else eof]))
+
+
 (define (input-transport? tport)
   (input-port? (transport-port tport)))
 

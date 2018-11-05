@@ -51,7 +51,8 @@ TBD
 }
 
 @defstruct*[encoder
-           ([message-begin (-> message-header? any/c)]
+           ([name string?]
+            [message-begin (-> message-header? any/c)]
             [message-end (-> any/c)]
             [struct-begin (-> any/c)]
             [struct-end (-> any/c)]
@@ -76,7 +77,8 @@ TBD
 }
 
 @defstruct*[decoder
-           ([message-begin (-> message-header?)]
+           ([name string?]
+            [message-begin (-> message-header?)]
             [message-end (-> void?)]
             [struct-begin (-> void?)]
             [struct-end (-> void?)]
@@ -135,6 +137,31 @@ Protocol} specification.
 
 @defproc[(get-protocol-decoder
           [t  transport?])
+         (or/c decoder? #f)]{
+ TBD
+}
+
+@;{============================================================================}
+@section[]{Multiplexed Protocol}
+@defmodule[thrift/protocol/multiplexed]
+
+This protocol wraps an existing protocol with the ability to support the calling
+of multiple services over the same protocol/transport pair. It is described by the
+@hyperlink["https://issues.apache.org/jira/browse/THRIFT-563"]{THRIFT-563} issue.
+
+@defstruct*[(mux-message-header message-header)
+            ([service-name string?])]{
+TBD
+}
+
+@defproc[(get-protocol-encoder
+          [wrapped encoder?])
+         (or/c encoder? #f)]{
+ TBD
+}
+
+@defproc[(get-protocol-decoder
+          [wrapped decoder?])
          (or/c decoder? #f)]{
  TBD
 }

@@ -113,13 +113,14 @@ Racket implementation (if any).
                (list "Sockets"      "minimal-required"    "not yet defined")
                (list "Buffered"     "minimal-required"    "not yet defined")
                (list "Framed"       "minimal-required"    "not yet defined")
-               (list "Files"        "minimal-recommended" @secref["File_Transport"
-                                                                  #:doc '(lib "thrift/scribblings/thrift.scrbl")])
+               (list "Files"        "minimal-recommended"
+                     @secref["File_Transport" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
                (list "HTTP Client"  "minimal-recommended" "not yet defined")
                (list "HTTP Server"  "other-recommended"   "not yet defined")
                (list "Pipes"        "other-recommended"   "not yet defined")
                (list "NamedPipes"   "other-recommended"   "not yet defined")
-               (list ""             ""                    "memory"))]
+               (list ""             ""
+                     @secref["In-Memory_Transport" #:doc '(lib "thrift/scribblings/thrift.scrbl")]))]
 
 The memory buffer transport (module @racket[thrift/transport/memory]) is primarily
 used for testing and allows reading/writing over byte buffers.
@@ -165,13 +166,15 @@ Racket implementation (if any).
 @tabular[#:style 'boxed
          #:row-properties '(bottom-border ())
          (list (list @bold{Feature} @bold{Coverage}       @bold{Racket})
-               (list "Binary"       "minimal-required"    @secref["Binary_Protocol"
-                                                                  #:doc '(lib "thrift/scribblings/thrift.scrbl")])
-               (list "Multiplex"    "minimal-required"    "not yet defined")
+               (list "Binary"       "minimal-required"
+                     @secref["Binary_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
+               (list "Multiplex"    "minimal-required"
+                     @secref["Multiplexed_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
                (list "JSON"         "minimal-recommended" "not yet defined")
-               (list "Compact"      "other-recommended"   @secref["Compact_Protocol"
-                                                                  #:doc '(lib "thrift/scribblings/thrift.scrbl")])
-               (list "Debug"        "other-recommended"   "not yet defined"))]
+               (list "Compact"      "other-recommended"
+                     @secref["Compact_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
+               (list "Debug"        "other-recommended"   "not yet defined")
+               (list "S-Expression" 'cont                 "not yet defined"))]
 
 @;{============================================================================}
 @section[]{Processor Layer}

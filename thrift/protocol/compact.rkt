@@ -114,6 +114,7 @@
 (define (get-protocol-decoder transport)
   (define state (compact-state '()))
   (decoder
+   "compact"
    (λ () (message-begin state transport))
    (λ () (no-op-decoder "message-end"))
    (λ () (struct-begin state transport))
