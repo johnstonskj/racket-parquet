@@ -169,6 +169,10 @@ TBD
 
 @subsection[]{Command-Line Launcher}
 
+The @racket[parquet/idl/generator] module is also used to create a launcher, @code{rthrift}
+that wraps @racket[process-file] to generate bindings for an IDL file from a Racket
+description.
+
 @verbatim|{
 rthrift [ <option> ... ] <file-path>
  where <option> is one of
@@ -182,3 +186,18 @@ rthrift [ <option> ... ] <file-path>
  Multiple single-letter switches can be combined after one `-'; for
   example: `-h-' is the same as `-h --'
 }|
+
+To generate the files used in the module @racket[parquet], we use the following
+command.
+
+@code{$ rthrift -o parquet/generated -m parquet/generated parquet/format.rkt}
+
+This generates the following files, in the @code{parquet/generated} directory.
+
+@itemlist[
+  @item{@code{parquet.rkt} - The core types, expanded, used by the following.}
+  @item{@code{parquet-encode.rkt} - All the encoder functions for the types above.}
+  @item{@code{parquet-decode.rkt} - All the decoder functions for the types above.}
+  @item{@code{parquet.scrbl} - Documentation for the three modules above.}
+]
+

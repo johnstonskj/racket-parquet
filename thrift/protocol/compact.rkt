@@ -76,8 +76,8 @@
          racket/list
          racket/set
          thrift
-         thrift/protocol/plain
          thrift/private/enumeration
+         thrift/private/protocol
          thrift/private/logging)
 
 ;; ---------- Internal types/values
@@ -115,20 +115,20 @@
   (define state (compact-state '()))
   (decoder
    (λ () (message-begin state transport))
-   (λ () (message-end state transport))
+   (λ () (no-op-decoder "message-end"))
    (λ () (struct-begin state transport))
    (λ () (struct-end state transport))
    (λ () (field-begin state transport))
-   (λ () (field-end state transport))
+   (λ () (no-op-decoder "field-end"))
    (λ () (map-begin state transport))
-   (λ () (map-end state transport))
+   (λ () (no-op-decoder "map-end"))
    (λ () (list-begin state transport))
-   (λ () (list-end state transport))
+   (λ () (no-op-decoder "list-end"))
    (λ () (set-begin state transport))
-   (λ () (set-end state transport))
+   (λ () (no-op-decoder "set-end"))
    (λ () (read-boolean transport))
    (λ () (transport-read-byte transport))
-   (λ (amt) (transport-read-bytes transport amt))
+   (λ () (read-binary transport))
    (λ () (read-integer transport 16))
    (λ () (read-integer transport 32))
    (λ () (read-integer transport 64))
@@ -162,6 +162,7 @@
 
 (define (message-begin state transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
+  (log-thrift-debug "message-begin")
   (define msg-protocol-id (transport-read-byte transport))
   (unless (= protocol-id msg-protocol-id)
     (error 'read-message-header "invalid message protocol id: " msg-protocol-id))
@@ -179,10 +180,6 @@
   (log-thrift-debug "message name ~a, type ~s, sequence" msg-method-name msg-type msg-sequence-id)
   (message-header msg-method-name msg-type msg-sequence-id))
 
-(define (message-end state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (void))
-
 (define (struct-begin state transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "struct-begin")
@@ -199,6 +196,7 @@
 
 (define (field-begin state transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
+  (log-thrift-debug "field-begin")
   (define head (transport-read-byte transport))
   (cond
     [(= head field-type-stop)
@@ -221,16 +219,6 @@
      (log-thrift-debug "<< structure field id ~a type ~a (~s)" field-id field-type (integer->field-type field-type))
      (field-header unnamed field-type field-id)]))
        
-(define (field-end state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (log-thrift-debug "field-end")
-  (void))
-
-(define (field-stop state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (log-thrift-debug "field-stop")
-  (void))
-
 (define (map-begin state transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "map-begin")
@@ -239,12 +227,6 @@
   (define key-type (bitwise-bit-field head-byte 4 8))
   (define element-type (bitwise-bit-field head-byte 0 4))
   (map key-type element-type size))
-
-
-(define (map-end state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (log-thrift-debug "map-end")
-  (void))
 
 (define (list-begin state transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
@@ -259,20 +241,10 @@
   (log-thrift-debug "<< reading list, ~a elements, of type ~s" size (integer->field-type element-type))
   (list-or-set element-type size))
 
-(define (list-end state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (log-thrift-debug "list-end")
-  (void))
-
 (define (set-begin state transport)
   (unless (input-transport? transport) (error "transport must be open for input"))
   (log-thrift-debug "set-begin")
   (list-begin state transport))
-
-(define (set-end state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (log-thrift-debug "set-end")
-  (void))
 
 ;; ---------- Internal procedures
 

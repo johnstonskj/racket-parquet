@@ -105,8 +105,12 @@ TBD
 }
 
 @;{============================================================================}
-@section[]{Plain Protocol}
-@defmodule[thrift/protocol/plain]
+@section[]{Binary Protocol}
+@defmodule[thrift/protocol/binary]
+
+This protocol is described by the 
+@hyperlink["https://github.com/apache/thrift/blob/master/doc/specs/thrift-binary-protocol.md"]{Binary
+Protocol} specification.
 
 @defproc[(get-protocol-encoder
           [t  transport?])
@@ -120,16 +124,13 @@ TBD
  TBD
 }
 
-@defproc[(read-plain-integer
-          [t (or/c transport? port?)]
-          [width-in-bytes exact-nonnegative-integer?])
-         integer?]{
- TBD
-}
-
 @;{============================================================================}
 @section[]{Compact Protocol}
 @defmodule[thrift/protocol/compact]
+
+This protocol is described by the 
+@hyperlink["https://github.com/apache/thrift/blob/master/doc/specs/thrift-compact-protocol.md"]{Compact
+Protocol} specification.
 
 @defproc[(get-protocol-encoder
           [t  transport?])

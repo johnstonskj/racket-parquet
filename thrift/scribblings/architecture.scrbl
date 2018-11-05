@@ -127,8 +127,6 @@ used for testing and allows reading/writing over byte buffers.
 @;{============================================================================}
 @section[]{Protocol Layer}
 
-TBD
-
 The Protocol interface described in the Thrift Concepts page is actually split
 into two separate components in the Racket implementation. These two are
 defined in the module @racket[thrift/protocol/common] as the structs
@@ -136,7 +134,11 @@ defined in the module @racket[thrift/protocol/common] as the structs
 having separate input and output ports as well as making it easier to implement
 just one half of the protocol interface.
 
-The following 
+The following table presents a sample of the mapping from the Thrift API on the
+left hand side to the Racket module form on the right. For the four methods on
+the thrift interface that deal with structured data: message, field, map, list,
+and set we define structs that are input to the write functions and returned
+from the read functions.
 
 @tabular[#:style 'boxed
          #:row-properties '(bottom-border ())
@@ -163,7 +165,7 @@ Racket implementation (if any).
 @tabular[#:style 'boxed
          #:row-properties '(bottom-border ())
          (list (list @bold{Feature} @bold{Coverage}       @bold{Racket})
-               (list "Binary"       "minimal-required"    @secref["Plain_Protocol"
+               (list "Binary"       "minimal-required"    @secref["Binary_Protocol"
                                                                   #:doc '(lib "thrift/scribblings/thrift.scrbl")])
                (list "Multiplex"    "minimal-required"    "not yet defined")
                (list "JSON"         "minimal-recommended" "not yet defined")
@@ -198,10 +200,8 @@ above.
 @;{============================================================================}
 @section[]{Server Layer}
 
-TBD
-
-The following table lists the servers defined by Thrift and their corresponding
-Racket implementation (if any).
+The following table lists the servers defined by Thrift, this is not currently
+the focus of this package and none are implemented.
 
 
 @tabular[#:style 'boxed

@@ -27,7 +27,7 @@
          racket/string
          thrift
          thrift/transport/file
-         (prefix-in plain: thrift/protocol/plain)
+         (prefix-in plain: thrift/protocol/binary)
          (prefix-in compact: thrift/protocol/compact)
          thrift/protocol/decoding
          parquet/generated/parquet

@@ -33,13 +33,14 @@
          (displayln out))
        (check-eq? (string-length out) 0)))))
 
-(test-doc-coverage '(thrift/idl/common
-thrift/idl/language
-thrift/idl/generator
-thrift/protocol/common
-thrift/protocol/plain
-thrift/protocol/compact
-thrift/transport/common
-thrift/transport/file
-))
+(test-doc-coverage
+ '(thrift/idl/common
+   thrift/idl/language
+   thrift/idl/generator
+   thrift/processor/common
+   thrift/protocol/binary
+   thrift/protocol/common
+   thrift/protocol/compact
+   thrift/transport/common
+   thrift/transport/file))
 

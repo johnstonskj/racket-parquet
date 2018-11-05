@@ -42,3 +42,6 @@ htmldocs: $(SCRBL)
 
 viewdocs:
 	raco docs
+
+thrift: parquet/format.rkt
+	rthrift -o parquet/generated -m parquet/generated parquet/format.rkt
