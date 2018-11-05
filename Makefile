@@ -24,7 +24,7 @@ test:
 	raco test -t -c $(COLLECTS)
 
 coverage:
-	raco cover -b -f coveralls -p $(PACKAGENAME)
+	raco cover -v -b -f coveralls -p $(PACKAGENAME)
 
 readme: README.md
 	markdown -r markdown_github -w html5 -o ./doc/readme.html \
