@@ -13,10 +13,10 @@
 
  (contract-out
   
-  [get-protocol-encoder
+  [make-binary-encoder
    (-> transport? (or/c encoder? #f))]
   
-  [get-protocol-decoder
+  [make-binary-decoder
    (-> transport? (or/c decoder? #f))]))
 
 ;; ---------- Requirements
@@ -53,10 +53,10 @@
    list))
 ;; ---------- Implementation
 
-(define (get-protocol-encoder transport)
+(define (make-binary-encoder transport)
   #f)
 
-(define (get-protocol-decoder transport)
+(define (make-binary-decoder transport)
   (decoder
    "binary"
    (λ () (message-begin transport))
@@ -77,7 +77,7 @@
    (λ () (read-plain-integer transport 2))
    (λ () (read-plain-integer transport 4))
    (λ () (read-plain-integer transport 8))
-   #f
+   (λ () (read-double transport))
    (λ () (bytes->string/utf-8 (read-binary transport)))))
 
 ;; ---------- Internal procedures

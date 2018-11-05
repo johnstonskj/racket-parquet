@@ -13,10 +13,10 @@
 
  (contract-out
   
-  [get-protocol-encoder
+  [make-multiplexed-encoder
    (-> encoder? string? (or/c encoder? #f))]
   
-  [get-protocol-decoder
+  [make-multiplexed-decoder
    (-> decoder? string? (or/c decoder? #f))])
 
  (struct-out mux-message-header))
@@ -36,7 +36,7 @@
 (struct mux-message-header message-header
   (service-name) #:transparent)
 
-(define (get-protocol-encoder wrapped service-name)
+(define (make-multiplexed-encoder wrapped service-name)
   (encoder
    "multiplexed"
    (λ (header) (encode-mux-message-begin header wrapped service-name))
@@ -60,7 +60,7 @@
    (λ () ((encoder-double wrapped)))
    (λ () ((encoder-string wrapped)))))
 
-(define (get-protocol-decoder wrapped service-name)
+(define (make-multiplexed-decoder wrapped service-name)
   (decoder
    "multiplexed"
    (λ () (decode-mux-message-begin wrapped))

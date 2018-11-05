@@ -11,138 +11,83 @@
 
  (contract-out
   
-  [get-protocol-encoder
+  [make-sexpression-encoder
    (-> transport? (or/c encoder? #f))]
   
-  [get-protocol-decoder
+  [make-sexpression-decoder
    (-> transport? (or/c decoder? #f))]))
 
 ;; ---------- Requirements
 
-(require racket/flonum
-         thrift/protocol/common
-         thrift/transport/common
+(require thrift
          thrift/private/enumeration
          thrift/private/protocol
          thrift/private/logging)
 
-;; ---------- Internal types/values
-
-(define protocol-version #b1000000000000001)
-
-(define unnamed "")
-
-(define-enumeration field-type 0
-  (stop
-   boolean
-   byte
-   double
-   int16
-   int32
-   int64
-   string
-   structure
-   map
-   set
-   list))
-
 ;; ---------- Implementation
 
-(define (get-protocol-encoder transport)
-  #f)
+(struct s-value
+  (index
+   type
+   value) #:prefab)
 
-(define (get-protocol-decoder transport)
-  (decoder
+(define (make-sexpression-encoder transport)
+  (encoder
    "s-expression"
-   (λ () (message-begin transport))
+   (λ (header) (write-value transport header))
    (λ () (no-op-decoder "message-end"))
    (λ () (no-op-decoder "struct-begin"))
    (λ () (no-op-decoder "struct-end"))
-   (λ () (field-begin transport))
+   (λ (header) (write-value transport header))
    (λ () (no-op-decoder "field-end"))
-   (λ () (map-begin transport))
+   (λ (header) (write-value transport header))
    (λ () (no-op-decoder "map-end"))
-   (λ () (list-begin transport))
+   (λ (header) (write-value transport header))
    (λ () (no-op-decoder "list-end"))
-   (λ () (set-begin transport))
+   (λ (header) (write-value transport header))
    (λ () (no-op-decoder "set-end"))
-   (λ () (if (= (transport-read-byte transport) 0) #f #t))
-   (λ () (transport-read-byte transport))
-   (λ () (read-binary transport))
-   (λ () (read-plain-integer transport 2))
-   (λ () (read-plain-integer transport 4))
-   (λ () (read-plain-integer transport 8))
-   #f
-   (λ () (bytes->string/utf-8 (read-binary transport)))))
+   (λ (v) (write-value transport v))
+   (λ (v) (write-value transport v))
+   (λ (v) (write-value transport v))
+   (λ (v) (write-value transport v))
+   (λ (v) (write-value transport v))
+   (λ (v) (write-value transport v))
+   (λ (v) (write-value transport v))
+   (λ (v) (write-value transport v))))
+
+(define (make-sexpression-decoder transport)
+  (decoder
+   "s-expression"
+   (λ () (read-value transport message-header?))
+   (λ () (no-op-decoder "message-end"))
+   (λ () (no-op-decoder "struct-begin"))
+   (λ () (no-op-decoder "struct-end"))
+   (λ () (read-value transport field-header?))
+   (λ () (no-op-decoder "field-end"))
+   (λ () (read-value transport map-header?))
+   (λ () (no-op-decoder "map-end"))
+   (λ () (read-value transport list-or-set?))
+   (λ () (no-op-decoder "list-end"))
+   (λ () (read-value transport list-or-set?))
+   (λ () (no-op-decoder "set-end"))
+   (λ () (read-value transport boolean?))
+   (λ () (read-value transport byte?))
+   (λ () (read-value transport bytes?))
+   (λ () (read-value transport integer?))
+   (λ () (read-value transport integer?))
+   (λ () (read-value transport integer?))
+   (λ () (read-value transport flonum?))
+   (λ () (read-value transport string?))))
 
 ;; ---------- Internal procedures
 
-(define (read-double in)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (->fl (read-plain-integer  transport 8)))
+(define (write-value transport v)
+  (transport-write transport v))
 
-(define (read-binary transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (define byte-length (read-plain-integer transport 4))
-  (transport-read-bytes transport byte-length))
-
-(define (read-string transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (bytes->string/utf-8 (read-binary transport)))
-
-(define (message-begin transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (log-thrift-debug "message-begin")
-
-  (define msg-version (read-plain-integer transport 2))
-  (unless (= protocol-version msg-version)
-    (error 'read-message-header "invalid protocol/message version: " msg-version))
-
-  (transport-read-byte transport) ;; ignored
-  
-  (define msg-type-byte (transport-read-byte transport))
-  ;; TODO: check top 5 bytes are 0
-  (define msg-type (bitwise-and #b111))
-
-  (define msg-method-name (read-string transport))
-  (unless (= (string-length msg-method-name) 0)
-    (error 'read-message-header "method name not specified."))
-  
-  (define msg-sequence-id (read-plain-integer transport 4))
-  (log-thrift-debug "message name ~a, type ~s, sequence" msg-method-name msg-type msg-sequence-id)
-  (message-header msg-method-name msg-type msg-sequence-id))
-
-(define (field-begin transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (log-thrift-debug "field-begin")
-  (define head (transport-read-byte transport))
+(define (read-value transport type-predicate?)
+  (define v (transport-read transport))
   (cond
-    [(= head field-type-stop)
-     (log-thrift-debug "<< (field-stop)")
-     (field-header unnamed field-type-stop 0)]
+    [(type-predicate? v)
+     v]
     [else
-     (define field-type (transport-read-byte transport))
-     (define field-id (read-plain-integer transport 2))
-     (log-thrift-debug "<< structure field id ~a type ~a (~s)" field-id field-type (integer->field-type field-type))
-     (field-header unnamed field-type field-id)]))
-       
-(define (map-begin transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (log-thrift-debug "map-begin")
-  (define key-type (transport-read-byte transport))
-  (define element-type (transport-read-byte transport))
-  (define size (read-plain-integer transport 4))
-  (map key-type element-type size))
-
-(define (list-begin transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (log-thrift-debug "list-begin")
-  (define element-type (transport-read-byte transport))
-  (define size (read-plain-integer transport 4))
-  (log-thrift-debug "<< reading list, ~a elements, of type ~s" size (integer->field-type element-type))
-  (list-or-set element-type size))
-
-(define (set-begin transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
-  (log-thrift-debug "set-begin")
-  (list-begin transport))
+     (error "value not expected type: " v)]))

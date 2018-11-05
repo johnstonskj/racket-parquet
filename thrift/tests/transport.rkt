@@ -9,7 +9,8 @@
 
 (require rackunit
          ; ---------
-         thrift)
+         thrift
+         thrift/transport/memory)
 
 ;; ---------- Test Fixtures
 
@@ -17,4 +18,11 @@
 
 ;; ---------- Test Cases
 
-(test-case "dummy first test")
+(test-case
+ "simple test for memory transport"
+
+ (define tout (open-output-memory-transport))
+ 
+ (define tin (open-input-memory-transport (transport-output-bytes tout)))
+
+ (check-true #t))

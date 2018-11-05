@@ -64,10 +64,10 @@
  
  (contract-out
   
-  [get-protocol-encoder
+  [make-compact-encoder
    (-> transport? (or/c encoder? #f))]
   
-  [get-protocol-decoder
+  [make-compact-decoder
    (-> transport? (or/c decoder? #f))]))
 
 ;; ---------- Requirements
@@ -108,10 +108,10 @@
 
 ;; ---------- Implementation
 
-(define (get-protocol-encoder transport)
+(define (make-compact-encoder transport)
   #f)
 
-(define (get-protocol-decoder transport)
+(define (make-compact-decoder transport)
   (define state (compact-state '()))
   (decoder
    "compact"

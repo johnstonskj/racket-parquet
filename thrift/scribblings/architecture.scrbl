@@ -120,7 +120,9 @@ Racket implementation (if any).
                (list "Pipes"        "other-recommended"   "not yet defined")
                (list "NamedPipes"   "other-recommended"   "not yet defined")
                (list ""             ""
-                     @secref["In-Memory_Transport" #:doc '(lib "thrift/scribblings/thrift.scrbl")]))]
+                     @secref["In-Memory_Transport" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
+               (list ""             ""
+                     @secref["Console_Transport" #:doc '(lib "thrift/scribblings/thrift.scrbl")]))]
 
 The memory buffer transport (module @racket[thrift/transport/memory]) is primarily
 used for testing and allows reading/writing over byte buffers.
@@ -173,8 +175,8 @@ Racket implementation (if any).
                (list "JSON"         "minimal-recommended" "not yet defined")
                (list "Compact"      "other-recommended"
                      @secref["Compact_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
-               (list "Debug"        "other-recommended"   "not yet defined")
-               (list "S-Expression" 'cont                 "not yet defined"))]
+               (list "Debug"        "other-recommended"
+                     @secref["S-Expression_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")]))]
 
 @;{============================================================================}
 @section[]{Processor Layer}

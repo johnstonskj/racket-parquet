@@ -26,11 +26,17 @@
   [transport-read-bytes
    (-> transport? exact-positive-integer? bytes?)]
   
+  [transport-read
+   (-> transport? any/c)]
+  
   [transport-write-byte
    (-> transport? byte? void?)]
   
   [transport-write-bytes
    (->* (transport? bytes?) (exact-nonnegative-integer? exact-nonnegative-integer?) void?)]
+  
+  [transport-write
+   (-> transport? any/c void?)]
   
   [transport-size
    (-> transport? (or/c exact-nonnegative-integer? eof-object?))]
@@ -65,6 +71,9 @@
 (define (transport-read-bytes tport amt)
   (read-bytes amt (transport-port tport)))
   
+(define (transport-read tport)
+  (read (transport-port tport)))
+  
 (define (transport-write-byte tport b)
   (write-byte b (transport-port tport)))
   
@@ -73,7 +82,11 @@
     [(false? end)
      (write-bytes bs (transport-port tport) start)]
     [else
-     (write-bytes bs (transport-port tport) start end)]))
+     (write-bytes bs (transport-port tport) start end)])
+  (void))
+  
+(define (transport-write tport v)
+  (write v (transport-port tport)))
   
 (define (transport-size tport)
   (cond

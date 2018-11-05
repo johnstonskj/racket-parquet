@@ -48,6 +48,12 @@ TBD
 TBD
 }
   
+@defproc[(transport-read
+          [t transport?])
+         any/c]{
+TBD
+}
+
 @defproc[(transport-write-byte
           [t transport?]
           [b byte?])
@@ -60,6 +66,13 @@ TBD
           [bs bytes?]
           [start-pos exact-nonnegative-integer? 0]
           [end-pos exact-nonnegative-integer?])
+         void?]{
+TBD
+}
+  
+@defproc[(transport-write
+          [t transport?]
+          [v any/c])
          void?]{
 TBD
 }
@@ -122,11 +135,26 @@ TBD
 }
 
 @;{============================================================================}
+@section[]{Console Transport}
+@defmodule[thrift/transport/console]
+
+@defproc[(open-input-console-transport
+          [buffer bytes?])
+         transport?]{
+TBD
+}
+
+@defproc[(open-output-console-transport)
+         transport?]{
+TBD
+}
+
+@;{============================================================================}
 @section[]{In-Memory Transport}
 @defmodule[thrift/transport/memory]
 
 @defproc[(open-input-memory-transport
-          [buffer bytes?])
+          [read-buffer bytes?])
          transport?]{
 TBD
 }

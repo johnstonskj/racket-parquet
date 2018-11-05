@@ -16,16 +16,16 @@
 ;; ---------- Implementation (Types)
 
 (struct message-header
-  (name type sequence-id) #:transparent)
+  (name type sequence-id) #:prefab)
 
 (struct field-header
-  (name type id) #:transparent)
+  (name type id) #:prefab)
 
 (struct map-header
-  (key-type element-type length) #:transparent)
+  (key-type element-type length) #:prefab)
 
 (struct list-or-set
-  (element-type length) #:transparent)
+  (element-type length) #:prefab)
 
 (struct encoder
   (name

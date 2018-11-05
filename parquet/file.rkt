@@ -27,8 +27,8 @@
          racket/string
          thrift
          thrift/transport/file
-         (prefix-in plain: thrift/protocol/binary)
-         (prefix-in compact: thrift/protocol/compact)
+         thrift/protocol/binary
+         thrift/protocol/compact
          thrift/protocol/decoding
          parquet/generated/parquet
          parquet/generated/parquet-decode)
@@ -56,7 +56,7 @@
     [else
      (log-parquet-debug "transport: ~a" transport)
 
-     (define plain (plain:get-protocol-decoder transport))
+     (define plain (make-binary-decoder transport))
      
      (define header-magic ((decoder-bytes plain) magic-length))
      (unless (equal? header-magic magic-number)
@@ -77,7 +77,7 @@
   (log-parquet-info "attempting to read metadata with compact decoder")
 
   (define size (transport-size transport))
-  (define plain (plain:get-protocol-decoder transport))
+  (define plain (make-binary-decoder transport))
 
   (transport-read-position transport (- size magic-length int32-length))
   (define footer-length ((decoder-int32 plain)))
@@ -88,7 +88,7 @@
   (transport-read-position transport (- size footer-length magic-length int32-length))
   (log-parquet-debug "Reading FileMetadata at: ~a" (transport-read-position transport))
   
-  (define compact (compact:get-protocol-decoder transport))
+  (define compact (make-compact-decoder transport))
   (file-metadata/decode compact))
 
 ;; ---------- Executable

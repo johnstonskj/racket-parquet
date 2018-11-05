@@ -109,13 +109,13 @@ This protocol is described by the
 @hyperlink["https://github.com/apache/thrift/blob/master/doc/specs/thrift-binary-protocol.md"]{Binary
 Protocol} specification.
 
-@defproc[(get-protocol-encoder
+@defproc[(make-binary-encoder
           [t  transport?])
          (or/c encoder? #f)]{
  TBD
 }
 
-@defproc[(get-protocol-decoder
+@defproc[(make-binary-decoder
           [t  transport?])
          (or/c decoder? #f)]{
  TBD
@@ -129,13 +129,13 @@ This protocol is described by the
 @hyperlink["https://github.com/apache/thrift/blob/master/doc/specs/thrift-compact-protocol.md"]{Compact
 Protocol} specification.
 
-@defproc[(get-protocol-encoder
+@defproc[(make-compact-encoder
           [t  transport?])
          (or/c encoder? #f)]{
  TBD
 }
 
-@defproc[(get-protocol-decoder
+@defproc[(make-compact-decoder
           [t  transport?])
          (or/c decoder? #f)]{
  TBD
@@ -154,14 +154,32 @@ of multiple services over the same protocol/transport pair. It is described by t
 TBD
 }
 
-@defproc[(get-protocol-encoder
+@defproc[(make-multiplexed-encoder
           [wrapped encoder?])
          (or/c encoder? #f)]{
  TBD
 }
 
-@defproc[(get-protocol-decoder
+@defproc[(make-multiplexed-decoder
           [wrapped decoder?])
+         (or/c decoder? #f)]{
+ TBD
+}
+
+@;{============================================================================}
+@section[]{S-Expression Protocol}
+@defmodule[thrift/protocol/sexpression]
+
+This protocol is intended as a more Racket friendly debug protocol.
+
+@defproc[(make-sexpression-encoder
+          [t  transport?])
+         (or/c encoder? #f)]{
+ TBD
+}
+
+@defproc[(make-sexpression-decoder
+          [t  transport?])
          (or/c decoder? #f)]{
  TBD
 }
