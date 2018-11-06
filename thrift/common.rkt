@@ -36,7 +36,7 @@
    invalid-protocol
    unsupported-client-type))
 
-(struct exception
+(struct exn:thrift exn:fail
   (message
    type) #:transparent)
 

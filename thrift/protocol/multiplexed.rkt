@@ -17,7 +17,13 @@
    (-> encoder? string? (or/c encoder? #f))]
   
   [make-multiplexed-decoder
-   (-> decoder? string? (or/c decoder? #f))])
+   (-> decoder? string? (or/c decoder? #f))]
+
+  [register-service
+   (-> decoder? string? protocol-processor/c void?)]
+
+  [deregister-service
+   (-> decoder? string? void?)])
 
  (struct-out mux-message-header))
 
@@ -27,6 +33,7 @@
          racket/list
          racket/string
          thrift/protocol/common
+         thrift/processor/common
          thrift/private/logging)
 
 ;; ---------- Implementation
@@ -60,8 +67,11 @@
    (λ () ((encoder-double wrapped)))
    (λ () ((encoder-string wrapped)))))
 
+(struct mux-decoder decoder
+  (service-registry))
+
 (define (make-multiplexed-decoder wrapped service-name)
-  (decoder
+  (mux-decoder
    "multiplexed"
    (λ () (decode-mux-message-begin wrapped))
    (λ () ((decoder-message-end wrapped)))
@@ -82,7 +92,20 @@
    (λ () ((decoder-int32 wrapped)))
    (λ () ((decoder-int64 wrapped)))
    (λ () ((decoder-double wrapped)))
-   (λ () ((decoder-string wrapped)))))
+   (λ () ((decoder-string wrapped)))
+   (make-hash)))
+
+(define (register-service mux service-name service-processor)
+  (unless (mux-decoder? mux)
+    (error "provided value is not a multiplexed decoder"))
+  (hash-set! (mux-decoder-service-registry mux) service-name service-processor)
+  (void))
+
+(define (deregister-service mux service-name)
+  (unless (mux-decoder? mux)
+    (error "provided value is not a multiplexed decoder"))
+  (hash-remove! (mux-decoder-service-registry mux) service-name)
+  (void))
 
 ;; ---------- Internal procedures
 

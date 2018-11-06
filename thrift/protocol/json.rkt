@@ -1,6 +1,6 @@
 #lang racket/base
 ;;
-;; thrift - protocol/sexpression.
+;; thrift - protocol/json.
 ;;   Support for Thrift encoding
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
@@ -26,6 +26,14 @@
 
 ;; ---------- Implementation
 
+; The message in the transport are encoded as this: 4 bytes represents
+; the length of the json object and immediately followed by the json object.
+; 
+;     '\x00\x00\x00+' '{"payload": {}, "metadata": {"version": 1}}'
+; 
+; the 4 bytes are the bytes representation of an integer and is encoded in
+; big-endian.
+
 (struct s-value
   (index
    type
@@ -46,7 +54,7 @@
    (λ (header) (write-value transport header))
    (λ () (no-op-encoder "list-end"))
    (λ (header) (write-value transport header))
-   (λ () (no-op-decoder "set-end"))
+   (λ () (no-op-encoder "set-end"))
    (λ (v) (write-value transport v))
    (λ (v) (write-value transport v))
    (λ (v) (write-value transport v))
@@ -83,8 +91,7 @@
 ;; ---------- Internal procedures
 
 (define (write-value transport v)
-  (transport-write transport v)
-  (display " " (transport-port transport)))
+  (transport-write transport v))
 
 (define (read-value transport type-predicate?)
   (define v (transport-read transport))

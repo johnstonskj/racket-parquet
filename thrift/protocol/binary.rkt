@@ -65,6 +65,7 @@
    (λ () (no-op-decoder "struct-end"))
    (λ () (field-begin transport))
    (λ () (no-op-decoder "field-end"))
+   (λ () (no-op-decoder "field-end"))
    (λ () (map-begin transport))
    (λ () (no-op-decoder "map-end"))
    (λ () (list-begin transport))

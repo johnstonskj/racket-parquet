@@ -166,6 +166,22 @@ TBD
  TBD
 }
 
+@defproc[(register-service
+          [mux decoder?]
+          [service-name string?]
+          [processor protocol-processor/c])
+         void?]{
+TBD
+}
+
+@defproc[(deregister-service
+          [mux decoder?]
+          [service-name string?])
+         void?]{
+TBD
+}
+
+
 @;{============================================================================}
 @section[]{S-Expression Protocol}
 @defmodule[thrift/protocol/sexpression]
