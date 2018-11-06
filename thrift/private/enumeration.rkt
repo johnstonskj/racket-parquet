@@ -10,8 +10,7 @@
 
 ;; ---------- Requirements
 
-(require thrift/protocol/common
-         (for-syntax
+(require (for-syntax
           racket/base
           racket/list
           racket/sequence
@@ -34,6 +33,7 @@
                    [name-id (format-id #'id "integer->~a" #'id)]
                    [names-id (format-id #'id "~a/names" #'id)])
        #`(begin
+           (require thrift/protocol/common)
            (define (decode-id decoder)
              (decoder-int32 decoder))
            #,@(let* ([first-integer (syntax->datum #'start)]

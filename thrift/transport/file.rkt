@@ -21,6 +21,7 @@
 
 (require racket/bool
          thrift/transport/common
+         thrift/transport/exn-common
          thrift/private/logging)
 
 ;; ---------- Implementation
@@ -37,11 +38,11 @@
   (log-thrift-info "opening thrift file: ~a for ~a" file-path direction)
   (cond
     [(not (file-exists? file-path))
-     (error 'open-file-transport "file does not exist, path:" file-path)]
+     (raise (file-not-exists (current-continuation-marks)))]
     [(not (member 'read (file-or-directory-permissions file-path)))
-     (error 'open-file-transport "file not readable")]
+     (raise (permission-error-read (current-continuation-marks)))]
     [(not (member 'write (file-or-directory-permissions file-path)))
-     (error 'open-file-transport "file not writeable")]
+     (raise (permission-error-write (current-continuation-marks)))]
     [else
      (define port
        (cond

@@ -33,6 +33,7 @@
          racket/list
          racket/string
          thrift/protocol/common
+         thrift/protocol/exn-common
          thrift/processor/common
          thrift/private/logging)
 
@@ -128,7 +129,7 @@
        (values "" (first names))]
       [(= (length names) 2)
        (values (first names) (second names))]
-      [else (error "could not decode message name")]))
+      [else (raise wrong-method-name)]))
   (mux-message-header
    method
    (message-header-type msg-header)

@@ -76,6 +76,7 @@
          racket/list
          racket/set
          thrift
+         thrift/protocol/exn-common
          thrift/private/enumeration
          thrift/private/protocol
          thrift/private/logging)
@@ -138,66 +139,74 @@
    (λ () (read-string transport))))
 
 (define (read-boolean transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (transport-read-byte transport))
 
 (define (read-integer transport width)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport) (raise transport-not-open-input))
   (define integer (zigzag->integer (read-varint transport)))
   (cond
     [(<= (integer-length integer) width)
      integer]
-    [else (error 'read-integer "integer read is too wide for bits: " width)]))
+    [else (number-too-large (current-continuation-marks) integer)]))
 
 (define (read-double in)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport) 
+    (raise (transport-not-open-input (current-continuation-marks))))
   (->fl (read-plain-integer  transport 8)))
 
 (define (read-binary transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (define byte-length (read-varint transport))
   (transport-read-bytes transport byte-length))
 
 (define (read-string transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (bytes->string/utf-8 (read-binary transport)))
 
 (define (message-begin state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "message-begin")
   (define msg-protocol-id (transport-read-byte transport))
   (unless (= protocol-id msg-protocol-id)
-    (error 'read-message-header "invalid message protocol id: " msg-protocol-id))
+    (raise (invalid-protocol-id (current-continuation-marks) msg-protocol-id)))
   (define msg-type-version (transport-read-byte transport))
   (define msg-type (bitwise-and (arithmetic-shift msg-type-version -5) #b111))
   (unless (message-type? msg-type)
-    (error 'read-message-header "invalid message type: " msg-type))
+    (raise (invalid-message-type (current-continuation-marks)msg-type)))
   (define msg-version (bitwise-and msg-type-version #b11111))
   (unless (= version msg-version)
-    (error 'read-message-header "invalid message version: " msg-version))
+    (raise invalid-protocol-version))
   (define msg-sequence-id (read-varint transport))
   (define msg-method-name (read-string transport))
   (unless (= (string-length msg-method-name) 0)
-    (error 'read-message-header "method name not specified."))
+    (raise wrong-method-name))
   (log-thrift-debug "message name ~a, type ~s, sequence" msg-method-name msg-type msg-sequence-id)
   (message-header msg-method-name msg-type msg-sequence-id))
 
 (define (struct-begin state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "struct-begin")
   ; push new tracking ID
   (set-compact-state-last-field-id! state (cons 0 (compact-state-last-field-id state)))
   unnamed)
 
 (define (struct-end state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "struct-end")
   ; pop the tracking ID
   (set-compact-state-last-field-id! state (rest (compact-state-last-field-id state)))
   (void))
 
 (define (field-begin state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "field-begin")
   (define head (transport-read-byte transport))
   (cond
@@ -207,22 +216,25 @@
     [else
      (define field-id-delta (bitwise-bit-field head 4 8))
      (define field-type (bitwise-bit-field head 0 4))
-     (log-thrift-debug (format ">> field header ~b -> ~b ~b" head field-id-delta field-type))
+     (log-thrift-debug (format ">> field header ~b -> ~b ~b"
+                               head field-id-delta field-type))
      (define field-id (cond
                         [(= field-id-delta 0)
                          (zigzag->integer (read-plain-integer transport 2))]
                         [else
                          (+ (first (compact-state-last-field-id state)) field-id-delta)]))
      (when (= field-id 0)
-       (error 'cp:read-structure "field id may not be zero"))
+       (raise (invalid-field-id-zero (current-continuation-marks))))
      (set-compact-state-last-field-id!
       state
       (cons field-id (rest (compact-state-last-field-id state))))
-     (log-thrift-debug "<< structure field id ~a type ~a (~s)" field-id field-type (integer->field-type field-type))
+     (log-thrift-debug "<< structure field id ~a type ~a (~s)"
+                       field-id field-type (integer->field-type field-type))
      (field-header unnamed field-type field-id)]))
        
 (define (map-begin state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "map-begin")
   (define size (read-varint  transport))
   (define head-byte (transport-read-byte transport))
@@ -231,7 +243,8 @@
   (map key-type element-type size))
 
 (define (list-begin state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "list-begin")
   (define first-byte (transport-read-byte transport))
   (define short-size (bitwise-bit-field first-byte 4 8))
@@ -240,11 +253,13 @@
                  [(= short-size 15)
                   (read-varint transport)]
                  [else short-size]))
-  (log-thrift-debug "<< reading list, ~a elements, of type ~s" size (integer->field-type element-type))
+  (log-thrift-debug "<< reading list, ~a elements, of type ~s"
+                    size (integer->field-type element-type))
   (list-or-set element-type size))
 
 (define (set-begin state transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "set-begin")
   (list-begin state transport))
 
@@ -256,7 +271,7 @@
      (bitwise-xor (arithmetic-shift n 1) (arithmetic-shift n -31))]
     [(< (integer-length n) 64)
      (bitwise-xor (arithmetic-shift n 1) (arithmetic-shift n -63))]
-    [else (error "cannot zig-zag number (too large): " n)]))
+    [else (raise (number-too-large (current-continuation-marks) n))]))
 
 (define (zigzag->integer z)
   (bitwise-xor (arithmetic-shift z -1) (- (bitwise-and z 1))))
@@ -267,7 +282,7 @@
 
 (define (write-varint transport n)
   (unless (> n 0)
-    (error "cannot 7bit encode negative numbers: " n))
+    (raise (number-negative (current-continuation-marks) n)))
   (define width (+ (quotient (integer-length n) 8) 2))
   (let next-byte ([num n])
     (define value (bitwise-and num 7bit-mask))

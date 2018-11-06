@@ -20,6 +20,7 @@
 ;; ---------- Requirements
 
 (require thrift
+         thrift/protocol/exn-common
          thrift/private/enumeration
          thrift/private/protocol
          thrift/private/logging)
@@ -92,4 +93,4 @@
     [(type-predicate? v)
      v]
     [else
-     (error "value not expected type: " v)]))
+     (raise (invalid-value-type (current-continuation-marks) v))]))

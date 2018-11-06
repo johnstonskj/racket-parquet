@@ -23,6 +23,7 @@
 
 (require racket/flonum
          thrift/protocol/common
+         thrift/protocol/exn-common
          thrift/transport/common
          thrift/private/enumeration
          thrift/private/protocol
@@ -84,25 +85,29 @@
 ;; ---------- Internal procedures
 
 (define (read-double in)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (->fl (read-plain-integer  transport 8)))
 
 (define (read-binary transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (define byte-length (read-plain-integer transport 4))
   (transport-read-bytes transport byte-length))
 
 (define (read-string transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (bytes->string/utf-8 (read-binary transport)))
 
 (define (message-begin transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport)
+    (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "message-begin")
 
   (define msg-version (read-plain-integer transport 2))
   (unless (= protocol-version msg-version)
-    (error 'read-message-header "invalid protocol/message version: " msg-version))
+    (raise (invalid-protocol-version (current-continuation-marks) msg-version)))
 
   (transport-read-byte transport) ;; ignored
   
@@ -112,14 +117,15 @@
 
   (define msg-method-name (read-string transport))
   (unless (= (string-length msg-method-name) 0)
-    (error 'read-message-header "method name not specified."))
+    (raise (wrong-method-name (current-continuation-marks) msg-method-name)))
   
   (define msg-sequence-id (read-plain-integer transport 4))
-  (log-thrift-debug "message name ~a, type ~s, sequence" msg-method-name msg-type msg-sequence-id)
+  (log-thrift-debug "message name ~a, type ~s, sequence"
+                    msg-method-name msg-type msg-sequence-id)
   (message-header msg-method-name msg-type msg-sequence-id))
 
 (define (field-begin transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport) (raise transport-not-open-input))
   (log-thrift-debug "field-begin")
   (define head (transport-read-byte transport))
   (cond
@@ -129,11 +135,12 @@
     [else
      (define field-type (transport-read-byte transport))
      (define field-id (read-plain-integer transport 2))
-     (log-thrift-debug "<< structure field id ~a type ~a (~s)" field-id field-type (integer->field-type field-type))
+     (log-thrift-debug "<< structure field id ~a type ~a (~s)"
+                       field-id field-type (integer->field-type field-type))
      (field-header unnamed field-type field-id)]))
        
 (define (map-begin transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport) (raise transport-not-open-input))
   (log-thrift-debug "map-begin")
   (define key-type (transport-read-byte transport))
   (define element-type (transport-read-byte transport))
@@ -141,14 +148,15 @@
   (map key-type element-type size))
 
 (define (list-begin transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport) (raise transport-not-open-input))
   (log-thrift-debug "list-begin")
   (define element-type (transport-read-byte transport))
   (define size (read-plain-integer transport 4))
-  (log-thrift-debug "<< reading list, ~a elements, of type ~s" size (integer->field-type element-type))
+  (log-thrift-debug "<< reading list, ~a elements, of type ~s"
+                    size (integer->field-type element-type))
   (list-or-set element-type size))
 
 (define (set-begin transport)
-  (unless (input-transport? transport) (error "transport must be open for input"))
+  (unless (input-transport? transport) (raise transport-not-open-input))
   (log-thrift-debug "set-begin")
   (list-begin transport))

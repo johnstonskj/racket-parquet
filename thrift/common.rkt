@@ -36,8 +36,4 @@
    invalid-protocol
    unsupported-client-type))
 
-(struct exn:thrift exn:fail
-  (message
-   type) #:transparent)
-
 (define field-stop-value 0)

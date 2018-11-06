@@ -5,7 +5,9 @@
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
 
-(require racket/contract racket/bool)
+(require racket/contract
+         racket/bool
+         thrift/common)
 
 (provide
  
