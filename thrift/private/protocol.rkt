@@ -21,18 +21,10 @@
 ;; ---------- Implementation
 
 (define (no-op-encoder name)
-  (λ (transport)
-    (unless (output-transport? transport)
-      (error "transport must be open for output"))
-    (log-thrift-debug (symbol->string name))
-    (void)))
+  (log-thrift-debug (symbol->string name)))
 
 (define (no-op-decoder name)
-  (λ (transport)
-    (unless (input-transport? transport)
-      (error "transport must be open for input"))
-    (log-thrift-debug (symbol->string name))
-    (void)))
+  (log-thrift-debug (symbol->string name)))
 
 (define (read-plain-integer in width-in-bytes)
   (unless (input-transport? in) (error "transport must be open for input"))
