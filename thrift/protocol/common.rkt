@@ -59,6 +59,7 @@
    struct-end
    field-begin
    field-end
+   field-stop
    map-begin
    map-end
    list-begin

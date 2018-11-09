@@ -93,12 +93,27 @@
 
 (module+ main
   (require racket/cmdline racket/logging rackunit thrift/private/logging)
-  
+
+  (define dump-metadata (make-parameter #f))
+  (define dump-row-group-metadata (make-parameter #f))
+  (define dump-data (make-parameter #t))
+  (define dump-format (make-parameter 'screen))
+  (define dump-columns (make-parameter '()))
   (define logging-level (make-parameter 'warning))
 
   (define file-to-read
     (command-line
      #:program "rparquet"
+     #:once-each
+     [("-m" "--metadata") "Display File Metadata"
+                         (dump-metadata #t)]
+     [("-r" "--row-group-metadata") "Display Row Group Metadata"
+                         (dump-row-group-metadata #t)]
+     [("-f" "--format") format "Select format for output"
+                         (dump-format (string->symbol format))]
+     #:multi
+     [("-c" "--col") column "Select column(s) to display"
+                         (dump-columns (cons column (dump-columns)))]
      #:once-each
      [("-v" "--verbose") "Compile with verbose messages"
                          (logging-level 'info)]
@@ -113,85 +128,92 @@
     (λ ()
       (define transport (open-input-parquet-file file-to-read))
       (define metadata (read-metadata transport))
-      (displayln (format "File Metadata: ~a" (transport-source transport)))
-      (displayln (format "  Version: ~a" (file-metadata-version metadata)))
-      (displayln (format "  Num Rows: ~a" (file-metadata-num-rows metadata)))
-      (displayln "  k/v metadata:")
-      (cond
-        [(or (equal? (file-metadata-key-value-metadata metadata) 'no-value)
-                     (= (length (file-metadata-key-value-metadata metadata)) 0))
-         (displayln "    (none)")]
-        [else
-         (for ([kv (file-metadata-key-value-metadata metadata)])
-           (displayln (format "    ~a: ~a"
-                              (key-value-key kv)
-                              (key-value-value kv))))])
-      (displayln "  schema:")
-      (cond
-        [(= (length (file-metadata-schema metadata)) 0)
-         (displayln "    (none)")]
-        [else
-         (for ([element (file-metadata-schema metadata)])
-           (displayln
-            (format "    ~a (~a): length=~a. repetition=~a, children=~a, converted-type=~a"
-                    (schema-element-name element)
-                    (if (equal? (schema-element-type element) 'no-value)
-                        'no-value
-                        (parquet-type->symbol (schema-element-type element)))
-                    (schema-element-type-length element)
-                    (if (equal? (schema-element-repetition-type element) 'no-value)
-                        'no-value
-                        (field-repetition-type->symbol (schema-element-repetition-type element)))
-                    (schema-element-num-children element)
-                    (schema-element-converted-type element)
-                    ))
-           )])
-      (displayln "  row groups:")
-      (cond
-        [(= (length (file-metadata-row-groups metadata)) 0)
-         (displayln "    (none)")]
-        [else
-         (for ([group (file-metadata-row-groups metadata)]
-               [idx (range (length (file-metadata-row-groups metadata)))])
-           (displayln (format "    group ~a:" idx))
-           (for ([column (row-group-columns group)])
-             (displayln (format "      path=~a, offset=~a, "
-                                (column-chunk-file-path column)
-                                (column-chunk-file-offset column)))
-             (displayln "        metadata:")
-             (displayln (format "          paths=~a, "
-                                (string-join
-                                 (column-metadata-path-in-schema (column-chunk-metadata column))
-                                 "; ")))
-             (displayln (format "          type=~a,"
-                                (parquet-type->symbol
-                                 (column-metadata-type
-                                  (column-chunk-metadata column)))))
-             (displayln (format "          encodings=~a, "
-                                (string-join
-                                 (for/list ([encoding (column-metadata-encodings
-                                                       (column-chunk-metadata column))])
-                                   (symbol->string (encoding->symbol encoding)))
-                                 "; ")))
-             (displayln (format "          compression=~a"
-                                (compression-codec->symbol
-                                 (column-metadata-codec
-                                  (column-chunk-metadata column)))))
-             (displayln (format "          values=~a, "
-                                (column-metadata-num-values (column-chunk-metadata column))))
-             (displayln (format "          uncompressed-size=~a, "
-                                (column-metadata-total-uncompressed-size
-                                 (column-chunk-metadata column))))
-             (displayln (format "          data-page-offset=~a,"
-                                (column-metadata-data-page-offset
-                                 (column-chunk-metadata column))))
-             (displayln (format "          index-page-offset=~a,"
-                                (column-metadata-index-page-offset
-                                 (column-chunk-metadata column))))
-             ))])
-      (newline)
-      (displayln "Data:")
-      (newline)
+      
+      (when (dump-metadata)
+        (displayln (format "File Metadata: ~a" (transport-source transport)))
+        (displayln (format "  Version: ~a" (file-metadata-version metadata)))
+        (displayln (format "  Num Rows: ~a" (file-metadata-num-rows metadata)))
+        (displayln "  k/v metadata:")
+        (cond
+          [(or (equal? (file-metadata-key-value-metadata metadata) 'no-value)
+               (= (length (file-metadata-key-value-metadata metadata)) 0))
+           (displayln "    (none)")]
+          [else
+           (for ([kv (file-metadata-key-value-metadata metadata)])
+             (displayln (format "    ~a: ~a"
+                                (key-value-key kv)
+                                (key-value-value kv))))])
+        (displayln "  schema:")
+        (cond
+          [(= (length (file-metadata-schema metadata)) 0)
+           (displayln "    (none)")]
+          [else
+           (for ([element (file-metadata-schema metadata)])
+             (displayln
+              (format "    ~a (~a): length=~a. repetition=~a, children=~a, converted-type=~a"
+                      (schema-element-name element)
+                      (if (equal? (schema-element-type element) 'no-value)
+                          'no-value
+                          (parquet-type->symbol (schema-element-type element)))
+                      (schema-element-type-length element)
+                      (if (equal? (schema-element-repetition-type element) 'no-value)
+                          'no-value
+                          (field-repetition-type->symbol (schema-element-repetition-type element)))
+                      (schema-element-num-children element)
+                      (schema-element-converted-type element)
+                      ))
+             )])
+        (newline))
+      
+      (when (dump-row-group-metadata)
+        (displayln "Row Group Metadata:")
+        (displayln "  row groups:")
+        (cond
+          [(= (length (file-metadata-row-groups metadata)) 0)
+           (displayln "    (none)")]
+          [else
+           (for ([group (file-metadata-row-groups metadata)]
+                 [idx (range (length (file-metadata-row-groups metadata)))])
+             (displayln (format "    group ~a:" idx))
+             (for ([column (row-group-columns group)])
+               (displayln (format "      path=~a, offset=~a, "
+                                  (column-chunk-file-path column)
+                                  (column-chunk-file-offset column)))
+               (displayln "        metadata:")
+               (displayln (format "          paths=~a, "
+                                  (string-join
+                                   (column-metadata-path-in-schema (column-chunk-metadata column))
+                                   "; ")))
+               (displayln (format "          type=~a,"
+                                  (parquet-type->symbol
+                                   (column-metadata-type
+                                    (column-chunk-metadata column)))))
+               (displayln (format "          encodings=~a, "
+                                  (string-join
+                                   (for/list ([encoding (column-metadata-encodings
+                                                         (column-chunk-metadata column))])
+                                     (symbol->string (encoding->symbol encoding)))
+                                   "; ")))
+               (displayln (format "          compression=~a"
+                                  (compression-codec->symbol
+                                   (column-metadata-codec
+                                    (column-chunk-metadata column)))))
+               (displayln (format "          values=~a, "
+                                  (column-metadata-num-values (column-chunk-metadata column))))
+               (displayln (format "          uncompressed-size=~a, "
+                                  (column-metadata-total-uncompressed-size
+                                   (column-chunk-metadata column))))
+               (displayln (format "          data-page-offset=~a,"
+                                  (column-metadata-data-page-offset
+                                   (column-chunk-metadata column))))
+               (displayln (format "          index-page-offset=~a,"
+                                  (column-metadata-index-page-offset
+                                   (column-chunk-metadata column))))))])
+        (newline))
+
+      (when (dump-data)
+        (displayln "Data:")
+        (newline))
 
       (close-parquet-file transport))
     #:logger thrift-logger

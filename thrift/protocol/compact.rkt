@@ -122,7 +122,7 @@
    (λ () (struct-end state transport))
    (λ () (field-begin state transport))
    (λ () (no-op-decoder "field-end"))
-   (λ () (no-op-decoder "field-end"))
+   (λ () (no-op-decoder "field-stop"))
    (λ () (map-begin state transport))
    (λ () (no-op-decoder "map-end"))
    (λ () (list-begin state transport))
