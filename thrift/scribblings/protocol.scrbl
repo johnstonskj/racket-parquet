@@ -142,6 +142,22 @@ Protocol} specification.
 }
 
 @;{============================================================================}
+@section[]{JSON Protocol}
+@defmodule[thrift/protocol/json]
+
+@defproc[(make-json-encoder
+          [t  transport?])
+         (or/c encoder? #f)]{
+ TBD
+}
+
+@defproc[(make-json-decoder
+          [t  transport?])
+         (or/c decoder? #f)]{
+ TBD
+}
+
+@;{============================================================================}
 @section[]{Multiplexed Protocol}
 @defmodule[thrift/protocol/multiplexed]
 

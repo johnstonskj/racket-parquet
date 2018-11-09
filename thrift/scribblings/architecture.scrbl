@@ -172,7 +172,8 @@ Racket implementation (if any).
                      @secref["Binary_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
                (list "Multiplex"    "minimal-required"
                      @secref["Multiplexed_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
-               (list "JSON"         "minimal-recommended" "not yet defined")
+               (list "JSON"         "minimal-recommended" 
+                     @secref["JSON_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
                (list "Compact"      "other-recommended"
                      @secref["Compact_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
                (list "Debug"        "other-recommended"
