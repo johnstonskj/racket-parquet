@@ -112,9 +112,11 @@ Racket implementation (if any).
          (list (list @bold{Feature} @bold{Coverage}       @bold{Racket})
                (list "Sockets"      "minimal-required"    "not yet defined")
                (list "Buffered"     "minimal-required"
-                     @secref["Buffered_Transport" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
+                     @secref["Buffered_and_Framed_Transports" #:doc
+                             '(lib "thrift/scribblings/thrift.scrbl")])
                (list "Framed"       "minimal-required"
-                     @secref["Framed_Transport" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
+                     @secref["Buffered_and_Framed_Transports" #:doc
+                             '(lib "thrift/scribblings/thrift.scrbl")])
                (list "Files"        "minimal-recommended"
                      @secref["File_Transport" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
                (list "HTTP Client"  "minimal-recommended" "not yet defined")
@@ -171,15 +173,20 @@ Racket implementation (if any).
          #:row-properties '(bottom-border ())
          (list (list @bold{Feature} @bold{Coverage}       @bold{Racket})
                (list "Binary"       "minimal-required"
-                     @secref["Binary_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
+                     @secref["Binary_Protocol" #:doc
+                             '(lib "thrift/scribblings/thrift.scrbl")])
                (list "Multiplex"    "minimal-required"
-                     @secref["Multiplexed_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
+                     @secref["Multiplexed_Protocol" #:doc
+                             '(lib "thrift/scribblings/thrift.scrbl")])
                (list "JSON"         "minimal-recommended" 
-                     @secref["JSON_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
+                     @secref["JSON_Protocol" #:doc
+                             '(lib "thrift/scribblings/thrift.scrbl")])
                (list "Compact"      "other-recommended"
-                     @secref["Compact_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
+                     @secref["Compact_Protocol" #:doc
+                             '(lib "thrift/scribblings/thrift.scrbl")])
                (list "Debug"        "other-recommended"
-                     @secref["S-Expression_Protocol" #:doc '(lib "thrift/scribblings/thrift.scrbl")]))]
+                     @secref["S-Expression_Protocol" #:doc
+                             '(lib "thrift/scribblings/thrift.scrbl")]))]
 
 @;{============================================================================}
 @section[]{Processor Layer}

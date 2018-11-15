@@ -20,9 +20,6 @@
   [transport-port
    (-> transport? port?)]
 
-  [transport-overrides
-   (-> transport? hash?)]
-
   [transport-read-byte
    (-> transport? byte?)]
   
@@ -64,75 +61,79 @@
 ;; ---------- Requirements
 
 (require racket/bool
+         racket/struct
          thrift/common
          thrift/private/transport)
 
-;; ---------- Implementation (Types)
+;; ---------- Implementation
 
 (define (transport-read-byte tport)
-  (define actual (if (hash-has-key? (transport-overrides tport) 'read-byte)
-                     (hash-ref (transport-overrides tport) 'read-byte)
-                     read-byte))
-  (actual (transport-port tport)))
+  (define actual (get-wrapped-func tport 1))
+  (if (false? actual)
+      (read-byte (transport-port tport))
+      (actual (transport-port tport))))
   
 (define (transport-read-bytes tport amt)
-  (define actual (if (hash-has-key? (transport-overrides tport) 'read-bytes)
-                     (hash-ref (transport-overrides tport) 'read-bytes)
-                     read-bytes))
-  (actual amt (transport-port tport)))
+  (define actual (get-wrapped-func tport 2))
+  (if (false? actual)
+      (read-bytes amt (transport-port tport))
+      (actual (transport-port tport) amt)))
   
 (define (transport-read tport)
-  (define actual (if (hash-has-key? (transport-overrides tport) 'read)
-                     (hash-ref (transport-overrides tport) 'read)
-                     read))
-  (actual (transport-port tport)))
-  
-(define (transport-write-byte tport b)
-  (define actual (if (hash-has-key? (transport-overrides tport) 'write-byte)
-                     (hash-ref (transport-overrides tport) 'write-byte)
-                     write-byte))
-  (actual b (transport-port tport)))
-  
-(define (transport-write-bytes tport bs [start 0] [end #f])
-  (define actual (if (hash-has-key? (transport-overrides tport) 'write-bytes)
-                     (hash-ref (transport-overrides tport) 'write-bytes)
-                     write-bytes))
-  (cond
-    [(false? end)
-     (actual bs (transport-port tport) start)]
-    [else
-     (actual bs (transport-port tport) start end)])
-  (void))
-  
-(define (transport-write tport v)
-  (define actual (if (hash-has-key? (transport-overrides tport) 'write)
-                     (hash-ref (transport-overrides tport) 'write)
-                     write))
-  (actual v (transport-port tport)))
-  
+  (define actual (get-wrapped-func tport 3))
+  (if (false? actual)
+      (read (transport-port tport))
+      (actual (transport-port tport))))
+
 (define (transport-size tport)
-  (define actual (if (hash-has-key? (transport-overrides tport) 'size)
-                     (hash-ref (transport-overrides tport) 'size)
-                     file-size))
   (cond
     [(input-transport? tport)
-     (actual (transport-source tport))]
+     (define actual (get-wrapped-func tport 4))
+     (if (false? actual)
+         (file-size (transport-source tport))
+         (actual (transport-source tport)))]
     [else eof]))
 
 (define (transport-read-position tport [new-pos #f])
-  (define actual (if (hash-has-key? (transport-overrides tport) 'position)
-                     (hash-ref (transport-overrides tport) 'position)
-                     file-position))
+  (define actual (get-wrapped-func tport 5))
+  (define position (if (false? actual) file-position actual))
   (cond
     [(input-transport? tport)
      (cond
        [(false? new-pos)
-        (actual (transport-port tport))]
+        (position (transport-port tport))]
        [else
-        (actual (transport-port tport) new-pos)
+        (position (transport-port tport) new-pos)
         new-pos])]
     [else eof]))
 
+(define (transport-write-byte tport b)
+  (define actual (get-wrapped-func tport 1))
+  (if (false? actual)
+      (write-byte b (transport-port tport))
+      (actual (transport-port tport) b)))
+  
+(define (transport-write-bytes tport bs [start 0] [end #f])
+  (define the-end (if (false? end) (bytes-length bs) end))
+  (define actual (get-wrapped-func tport 2))
+  (if (false? actual)
+      (if (false? end)
+          (write-bytes bs (transport-port tport) start)
+          (write-bytes bs (transport-port tport) start end))
+      (actual (transport-port tport) bs start end))
+  (void))
+  
+(define (transport-write tport v)
+  (define actual (get-wrapped-func tport 3))
+  (if (false? actual)
+      (write v (transport-port tport))
+      (actual (transport-port tport) v)))
+  
+(define (flush-transport tport)
+  (define actual (get-wrapped-func tport 4))
+  (if (false? actual)
+      (flush-output (transport-port tport))
+      (actual (transport-port tport))))
 
 (define (input-transport? tport)
   (input-port? (transport-port tport)))
@@ -150,8 +151,10 @@
      (close-output-port p)]
     [else (error "what kind of port is this? " p)]))
 
-(define (flush-transport tport)
-  (define actual (if (hash-has-key? (transport-overrides tport) 'flush)
-                     (hash-ref (transport-overrides tport) 'flush)
-                     flush-output))
-  (actual (transport-port tport)))
+;; ---------- Internal procedures
+
+(define (get-wrapped-func tport findex)
+  (cond
+    [(wrapped-transport? tport)
+     (list-ref (struct->list (wrapped-transport-intercept tport)) findex)]
+    [else #f]))

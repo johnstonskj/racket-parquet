@@ -51,7 +51,6 @@
    thrift/transport/buffered
    thrift/transport/common
    thrift/transport/console
-   thrift/transport/file
-   thrift/transport/framed))
+   thrift/transport/file))
    ; not yet thrift/transport/serializer
 

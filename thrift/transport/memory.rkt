@@ -27,10 +27,10 @@
 ;; ---------- Implementation
 
 (define (open-input-memory-transport bytes)
-  (transport "in-memory" 'memory (open-input-bytes bytes) (hash)))
+  (transport "in-memory" 'memory (open-input-bytes bytes)))
 
 (define (open-output-memory-transport)
-  (transport "in-memory" 'memory (open-output-bytes) (hash)))
+  (transport "in-memory" 'memory (open-output-bytes)))
 
 (define (transport-output-bytes tport)
   (get-output-bytes (transport-port tport)))

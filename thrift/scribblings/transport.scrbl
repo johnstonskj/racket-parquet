@@ -119,7 +119,7 @@ TBD
 }
 
 @;{============================================================================}
-@section[]{Buffered Transport}
+@section[]{Buffered and Framed Transports}
 @defmodule[thrift/transport/buffered]
 
 @defproc[(open-input-buffered-transport
@@ -140,10 +140,6 @@ TBD
 )]{
 TBD
 }
-
-@;{============================================================================}
-@section[]{Framed Transport}
-@defmodule[thrift/transport/framed]
 
 @defproc[(open-input-framed-transport
           [wrapped input-transport?])

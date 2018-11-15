@@ -51,5 +51,5 @@
           (open-output-file file-path #:mode 'binary #:exists 'can-update)]))
      (file-stream-buffer-mode port 'block)
      
-     (transport "file" file-path port (hash))]))
+     (transport "file" file-path port)]))
 
