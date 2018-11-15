@@ -12,27 +12,25 @@
  (contract-out
   
   [open-input-memory-transport
-   (-> bytes? transport?)]
+   (-> bytes? input-transport?)]
 
   [open-output-memory-transport
-   (-> transport?)]
+   (-> output-transport?)]
 
   [transport-output-bytes 
-   (->  transport? bytes?)]))
+   (->  output-transport? bytes?)]))
 
 ;; ---------- Requirements
 
-(require racket/bool
-         thrift/transport/common
-         thrift/private/logging)
+(require thrift/transport/common)
 
 ;; ---------- Implementation
 
 (define (open-input-memory-transport bytes)
-  (transport "in-memory" 'memory (open-input-bytes bytes)))
+  (transport "in-memory" 'memory (open-input-bytes bytes) (hash)))
 
 (define (open-output-memory-transport)
-  (transport "in-memory" 'memory (open-output-bytes)))
+  (transport "in-memory" 'memory (open-output-bytes) (hash)))
 
 (define (transport-output-bytes tport)
   (get-output-bytes (transport-port tport)))

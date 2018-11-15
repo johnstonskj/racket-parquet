@@ -111,8 +111,10 @@ Racket implementation (if any).
          #:row-properties '(bottom-border ())
          (list (list @bold{Feature} @bold{Coverage}       @bold{Racket})
                (list "Sockets"      "minimal-required"    "not yet defined")
-               (list "Buffered"     "minimal-required"    "not yet defined")
-               (list "Framed"       "minimal-required"    "not yet defined")
+               (list "Buffered"     "minimal-required"
+                     @secref["Buffered_Transport" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
+               (list "Framed"       "minimal-required"
+                     @secref["Framed_Transport" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
                (list "Files"        "minimal-recommended"
                      @secref["File_Transport" #:doc '(lib "thrift/scribblings/thrift.scrbl")])
                (list "HTTP Client"  "minimal-recommended" "not yet defined")

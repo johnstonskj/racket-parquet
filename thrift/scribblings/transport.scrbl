@@ -117,6 +117,44 @@ TBD
 TBD
 }
 
+@;{============================================================================}
+@section[]{Buffered Transport}
+@defmodule[thrift/transport/buffered]
+
+@defproc[(open-input-buffered-transport
+          [wrapped input-transport?])
+         input-transport?]{
+TBD
+}
+
+@defproc[(open-output-buffered-transport
+          [wrapped output-transport?])
+         output-transport?]{
+TBD
+}
+
+@defproc*[(
+  [(buffered-read-length) positive-integer?]
+  [(buffered-read-length [length positive-integer?]) void?]
+)]{
+TBD
+}
+
+@;{============================================================================}
+@section[]{Framed Transport}
+@defmodule[thrift/transport/framed]
+
+@defproc[(open-input-framed-transport
+          [wrapped input-transport?])
+         input-transport?]{
+TBD
+}
+
+@defproc[(open-output-framed-transport
+          [wrapped output-transport?])
+         output-transport?]{
+TBD
+}
 
 @;{============================================================================}
 @section[]{File Transport}

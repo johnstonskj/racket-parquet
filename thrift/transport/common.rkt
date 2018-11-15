@@ -5,9 +5,7 @@
 ;;
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
 
-(require racket/contract
-         racket/bool
-         thrift/common)
+(require racket/contract)
 
 (provide
  
@@ -21,6 +19,9 @@
 
   [transport-port
    (-> transport? port?)]
+
+  [transport-overrides
+   (-> transport? hash?)]
 
   [transport-read-byte
    (-> transport? byte?)]
@@ -60,50 +61,75 @@
  
  transport)
 
+;; ---------- Requirements
+
+(require racket/bool
+         thrift/common
+         thrift/private/transport)
+
 ;; ---------- Implementation (Types)
 
-(struct transport
-  (name
-   source
-   port))
-
 (define (transport-read-byte tport)
-  (read-byte (transport-port tport)))
+  (define actual (if (hash-has-key? (transport-overrides tport) 'read-byte)
+                     (hash-ref (transport-overrides tport) 'read-byte)
+                     read-byte))
+  (actual (transport-port tport)))
   
 (define (transport-read-bytes tport amt)
-  (read-bytes amt (transport-port tport)))
+  (define actual (if (hash-has-key? (transport-overrides tport) 'read-bytes)
+                     (hash-ref (transport-overrides tport) 'read-bytes)
+                     read-bytes))
+  (actual amt (transport-port tport)))
   
 (define (transport-read tport)
-  (read (transport-port tport)))
+  (define actual (if (hash-has-key? (transport-overrides tport) 'read)
+                     (hash-ref (transport-overrides tport) 'read)
+                     read))
+  (actual (transport-port tport)))
   
 (define (transport-write-byte tport b)
-  (write-byte b (transport-port tport)))
+  (define actual (if (hash-has-key? (transport-overrides tport) 'write-byte)
+                     (hash-ref (transport-overrides tport) 'write-byte)
+                     write-byte))
+  (actual b (transport-port tport)))
   
 (define (transport-write-bytes tport bs [start 0] [end #f])
+  (define actual (if (hash-has-key? (transport-overrides tport) 'write-bytes)
+                     (hash-ref (transport-overrides tport) 'write-bytes)
+                     write-bytes))
   (cond
     [(false? end)
-     (write-bytes bs (transport-port tport) start)]
+     (actual bs (transport-port tport) start)]
     [else
-     (write-bytes bs (transport-port tport) start end)])
+     (actual bs (transport-port tport) start end)])
   (void))
   
 (define (transport-write tport v)
-  (write v (transport-port tport)))
+  (define actual (if (hash-has-key? (transport-overrides tport) 'write)
+                     (hash-ref (transport-overrides tport) 'write)
+                     write))
+  (actual v (transport-port tport)))
   
 (define (transport-size tport)
+  (define actual (if (hash-has-key? (transport-overrides tport) 'size)
+                     (hash-ref (transport-overrides tport) 'size)
+                     file-size))
   (cond
     [(input-transport? tport)
-     (file-size (transport-source tport))]
+     (actual (transport-source tport))]
     [else eof]))
 
 (define (transport-read-position tport [new-pos #f])
+  (define actual (if (hash-has-key? (transport-overrides tport) 'position)
+                     (hash-ref (transport-overrides tport) 'position)
+                     file-position))
   (cond
     [(input-transport? tport)
      (cond
        [(false? new-pos)
-        (file-position (transport-port tport))]
+        (actual (transport-port tport))]
        [else
-        (file-position (transport-port tport) new-pos)
+        (actual (transport-port tport) new-pos)
         new-pos])]
     [else eof]))
 
@@ -117,9 +143,15 @@
 (define (close-transport tport)
   (define p (transport-port tport))
   (cond
-    [(input-port? p) (close-input-port p)]
-    [(output-port? p) (close-output-port p)]
+    [(input-port? p)
+     (close-input-port p)]
+    [(output-port? p)
+     (flush-transport tport)
+     (close-output-port p)]
     [else (error "what kind of port is this? " p)]))
 
 (define (flush-transport tport)
-  (flush-output (transport-port tport)))
+  (define actual (if (hash-has-key? (transport-overrides tport) 'flush)
+                     (hash-ref (transport-overrides tport) 'flush)
+                     flush-output))
+  (actual (transport-port tport)))

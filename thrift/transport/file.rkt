@@ -12,15 +12,14 @@
  (contract-out
   
   [open-input-file-transport
-   (-> string? transport?)]
+   (-> string? input-transport?)]
 
   [open-output-file-transport
-   (-> string? transport?)]))
+   (-> string? output-transport?)]))
 
 ;; ---------- Requirements
 
-(require racket/bool
-         thrift/transport/common
+(require thrift/transport/common
          thrift/transport/exn-common
          thrift/private/logging)
 
@@ -52,5 +51,5 @@
           (open-output-file file-path #:mode 'binary #:exists 'can-update)]))
      (file-stream-buffer-mode port 'block)
      
-     (transport "file" file-path port)]))
+     (transport "file" file-path port (hash))]))
 
