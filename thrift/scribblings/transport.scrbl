@@ -31,7 +31,8 @@ Support for Thrift transports
 @defstruct*[transport
             ([name string?]
              [source string?]
-             [port port?])]{
+             [port port?]
+             [overrides hash?])]{
 TBD
 }
 

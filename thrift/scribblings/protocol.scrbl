@@ -84,6 +84,7 @@ TBD
             [struct-end (-> void?)]
             [field-begin (-> field-header?)]
             [field-end (-> void?)]
+            [field-stop (-> any/c)]
             [map-begin(-> map-header?)]
             [map-end (-> void?)]
             [list-begin (-> list-or-set?)]

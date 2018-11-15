@@ -37,10 +37,21 @@
  '(thrift/idl/common
    thrift/idl/language
    thrift/idl/generator
+   
    thrift/processor/common
+   
    thrift/protocol/binary
    thrift/protocol/common
    thrift/protocol/compact
+   thrift/protocol/json
+   thrift/protocol/multiplexed
+   thrift/protocol/sexpression
+   thrift/protocol/decoding
+   
+   thrift/transport/buffered
    thrift/transport/common
-   thrift/transport/file))
+   thrift/transport/console
+   thrift/transport/file
+   thrift/transport/framed))
+   ; not yet thrift/transport/serializer
 
