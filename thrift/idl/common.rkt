@@ -6,7 +6,10 @@
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
 
 (provide
- (all-defined-out))
+ (except-out (all-defined-out)
+             type-unused-1
+             type-unused-2
+             type-unused-3))
 
 ;; ---------- Requirements
 
@@ -17,21 +20,28 @@
 ;; from https://thrift.apache.org/docs/types
 (define-enumeration type 0
   (;; Base Types
+   stop
+   void
    bool
    byte
-   int16
-   int32
-   int64
    double
+   unused-1
+   int16
+   unused-2
+   int32
+   unused-3
+   int64
    string
-   ;; Special Types
-   binary
-   ;; Structs
    struct
-   ;; Containers
-   list
+   map
    set
-   map))
+   list
+   utf-8
+   utf-16))
+
+(define type-int8 type-byte)
+(define type-utf-7 type-string)
+(define type-binary type-string)
 
 (define-enumeration required-type
   (required

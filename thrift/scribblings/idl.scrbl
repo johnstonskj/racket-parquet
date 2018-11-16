@@ -54,18 +54,24 @@ Support for Thrift format definitions
 
 @defproc[(type? [v any/c]) boolean?]
 
-@deftogether[(@defthing[type-bool type?]
+@deftogether[(@defthing[type-stop type?]
+               @defthing[type-void type?]
+               @defthing[type-bool type?]
                @defthing[type-byte type?]
+               @defthing[type-int8 type?]
+               @defthing[type-double type?]
                @defthing[type-int16 type?]
                @defthing[type-int32 type?]
                @defthing[type-int64 type?]
-               @defthing[type-double type?]
                @defthing[type-string type?]
                @defthing[type-binary type?]
+               @defthing[type-utf-7 type?]
                @defthing[type-struct type?]
+               @defthing[type-map type?]
                @defthing[type-list type?]
                @defthing[type-set type?]
-               @defthing[type-map type?])]{
+               @defthing[type-utf-8 type?]
+               @defthing[type-utf-16 type?])]{
 TBD
 }
 

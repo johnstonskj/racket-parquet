@@ -8,10 +8,13 @@
 ;; ---------- Requirements
 
 (require racket/bool
+         racket/list
          rackunit
          ; ---------
          thrift
          thrift/protocol/binary
+         thrift/protocol/compact
+         thrift/protocol/json
          thrift/protocol/sexpression
          thrift/transport/buffered
          thrift/transport/memory)
@@ -20,10 +23,10 @@
 
 ;; ---------- Internal procedures
 
-(define (test-write-then-read [wrapper-out #f] [wrapper-in #f])
+(define (test-write-then-read encoder decoder wrapper-out wrapper-in)
   (define traw-out (open-output-memory-transport))
   (define tout (if (false? wrapper-out) traw-out (wrapper-out traw-out)))
-  (define pout (make-sexpression-encoder tout))
+  (define pout (encoder tout))
 
   ((encoder-message-begin pout) (message-header "test" message-type-call 101))
   (flush-transport tout)
@@ -49,7 +52,7 @@
   
   ((encoder-struct-end pout))
   
-  ((encoder-map-begin pout) (map-header type-string type-int32 0))
+  ((encoder-map-begin pout) (map-header type-string type-int32 3))
   ((encoder-string pout) "key")
   ((encoder-string pout) "value")
   ((encoder-string pout) "key2")
@@ -63,33 +66,79 @@
   
   (close-transport tout)
   (define content (transport-output-bytes traw-out))
-  (displayln content)
   
   (define traw-in (open-input-memory-transport content))
   (define tin (if (false? wrapper-in) traw-in (wrapper-in traw-in)))
-  (define pin (make-sexpression-decoder tin))
+  (define pin (decoder tin))
+  
   (define msg ((decoder-message-begin pin)))
   (check-equal? (message-header-name msg) "test")
   (check-equal? (message-header-type msg) message-type-call)
   (check-equal? (message-header-sequence-id msg) 101)
   ((decoder-message-end pin))
+
+  (define lst ((decoder-list-begin pin)))
+  (check-equal? (list-or-set-element-type lst) type-string)
+  (check-equal? (list-or-set-length lst) 2)
+  (check-equal? ((decoder-string pin)) "hello")
+  (check-equal? ((decoder-string pin)) "world")
+
+  ((decoder-struct-begin pin))
+
+  (define fld-1 ((decoder-field-begin pin)))
+;  (check-equal? (field-header-name fld-1) "")
+  (check-equal? (field-header-type fld-1) type-string)
+  (check-equal? (field-header-id fld-1) 1)
+  (check-equal? ((decoder-string pin)) "simon")
+  ((decoder-field-end pin))
   
+  (define fld-2 ((decoder-field-begin pin)))
+;  (check-equal? (field-header-name fld-2) "")
+  (check-equal? (field-header-type fld-2) type-byte)
+  (check-equal? (field-header-id fld-2) 2)
+  (check-equal? ((decoder-byte pin)) 48)
+  ((decoder-field-end pin))
+  
+  (define fld-3 ((decoder-field-begin pin)))
+;  (check-equal? (field-header-name fld-3) "")
+  (check-equal? (field-header-type fld-3) type-bool)
+  (check-equal? (field-header-id fld-3) 3)
+  (check-equal? ((decoder-boolean pin)) #f)
+  ((decoder-field-end pin))
+  
+  ((decoder-struct-end pin))
+
+  (define a-map ((decoder-map-begin pin)))
+  (check-equal? (map-header-key-type a-map) type-string)
+  (check-equal? (map-header-element-type a-map) type-int32)
+  (check-equal? (map-header-length a-map) 3)
+  
+  (check-equal? ((decoder-string pin)) "key")
+  (check-equal? ((decoder-string pin)) "value")
+  (check-equal? ((decoder-string pin)) "key2")
+  (check-equal? ((decoder-int32 pin)) 101)
+  (check-equal? ((decoder-int32 pin)) 202)
+  (check-equal? ((decoder-string pin)) "value?")
+
+  ((decoder-map-end pin))
+
   (close-transport tin))
 
 ;; ---------- Test Cases
 
-(test-case
- "simple test for memory transport"
+(define protocols
+  (list (list "binary" make-binary-encoder make-binary-decoder)
+        ;(list "compact" make-compact-encoder make-compact-decoder)
+        ;(list "json" make-json-encoder make-json-decoder)
+        (list "s-expression" make-sexpression-encoder make-sexpression-decoder)))
 
- (test-write-then-read))
+(define transport-wrappers
+  (list (list "none" #f #f)
+        (list "buffered" open-output-buffered-transport open-input-buffered-transport)))
+        ;(list "framed" open-output-framed-transport open-input-framed-transport)))
 
-(test-case
- "simple test for buffered transport"
-
- (test-write-then-read open-output-buffered-transport open-input-buffered-transport))
-
-(test-case
- "simple test for framed transport"
-
- (test-write-then-read open-output-framed-transport open-input-framed-transport))
-
+(for* ([protocol protocols] [transport transport-wrappers])
+  (test-case
+   (format "simple test of ~a protocol over memory transport, with wrapper ~a"
+           (first protocol) (first transport))
+   (apply test-write-then-read (append (rest protocol) (rest transport)))))

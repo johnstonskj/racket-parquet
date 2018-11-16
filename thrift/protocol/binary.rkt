@@ -23,6 +23,7 @@
 
 (require racket/bool
          racket/flonum
+         thrift/idl/common
          thrift/protocol/common
          thrift/protocol/exn-common
          thrift/transport/common
@@ -36,23 +37,6 @@
 
 (define unnamed "")
 
-(define-enumeration field-type 0
-  (stop
-   unused-1
-   boolean
-   byte
-   double
-   unused-5
-   int16
-   unused-7
-   int32
-   unused-9
-   int64
-   string
-   structure
-   map
-   set
-   list))
 ;; ---------- Implementation
 
 (define (make-binary-encoder transport)
@@ -113,7 +97,7 @@
       (transport-write-byte tport 1)))
 
 (define (read-boolean tport)
-  (if (= (transport-read-byte transport) 0) #f #t))
+  (if (= (transport-read-byte tport) 0) #f #t))
 
 (define (write-double tport v)
   (write-plain-integer tport (fl->exact-integer v) 8))
@@ -146,7 +130,7 @@
 (define (read-message-begin tport)
   (log-thrift-debug "read-message-begin")
 
-  (define msg-version (read-plain-integer transport 2))
+  (define msg-version (read-plain-integer tport 2 #f))
   (unless (= protocol-version msg-version)
     (raise (invalid-protocol-version (current-continuation-marks) msg-version)))
 
@@ -154,38 +138,37 @@
   
   (define msg-type-byte (transport-read-byte tport))
   ;; TODO: check top 5 bytes are 0
-  (define msg-type (bitwise-and #b111))
+  (define msg-type (bitwise-and msg-type-byte #b111))
 
   (define msg-method-name (read-string tport))
-  (unless (= (string-length msg-method-name) 0)
+  (when (= (string-length msg-method-name) 0)
     (raise (wrong-method-name (current-continuation-marks) msg-method-name)))
   
   (define msg-sequence-id (read-plain-integer tport 4))
-  (log-thrift-debug "message name ~a, type ~s, sequence"
+  (log-thrift-debug "message name ~a, type ~s, sequence ~a"
                     msg-method-name msg-type msg-sequence-id)
   (message-header msg-method-name msg-type msg-sequence-id))
 
 (define (write-field-begin tport field)
   (log-thrift-debug "write-field-begin")
   (cond
-    [(equal? (field-header-type field) field-type-stop)
-     (transport-write-byte tport 0)]
+    [(equal? (field-header-type field) type-stop)
+     (transport-write-byte tport type-stop)]
     [else
      (transport-write-byte tport (field-header-type field))
      (write-plain-integer tport (field-header-id field) 2)]))
 
 (define (read-field-begin tport)
   (log-thrift-debug "field-begin")
-  (define head (transport-read-byte tport))
+  (define field-type (transport-read-byte tport))
   (cond
-    [(= head field-type-stop)
+    [(= field-type type-stop)
      (log-thrift-debug "<< (field-stop)")
-     (field-header unnamed field-type-stop 0)]
+     (field-header unnamed type-stop type-stop)]
     [else
-     (define field-type (transport-read-byte tport))
      (define field-id (read-plain-integer tport 2))
      (log-thrift-debug "<< structure field id ~a type ~a (~s)"
-                       field-id field-type (integer->field-type field-type))
+                       field-id field-type (integer->type field-type))
      (field-header unnamed field-type field-id)]))
 
 (define (write-map-begin tport map)
@@ -199,7 +182,7 @@
   (define key-type (transport-read-byte tport))
   (define element-type (transport-read-byte tport))
   (define size (read-plain-integer tport 4))
-  (map key-type element-type size))
+  (map-header key-type element-type size))
 
 (define (write-list-begin tport lst)
   (log-thrift-debug "write-list-begin")
@@ -211,7 +194,7 @@
   (define element-type (transport-read-byte tport))
   (define size (read-plain-integer tport 4))
   (log-thrift-debug "<< reading list, ~a elements, of type ~s"
-                    size (integer->field-type element-type))
+                    size (integer->type element-type))
   (list-or-set element-type size))
 
 (define (write-set-begin tport set)
@@ -220,4 +203,4 @@
   
 (define (read-set-begin tport)
   (log-thrift-debug "read-set-begin")
-  (read-list-begin transport))
+  (read-list-begin tport))
