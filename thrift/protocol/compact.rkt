@@ -116,18 +116,18 @@
   (define state (compact-state '()))
   (decoder
    "compact"
-   (λ () (message-begin state transport))
+   (λ () (read-message-begin state transport))
    (λ () (no-op-decoder "message-end"))
-   (λ () (struct-begin state transport))
-   (λ () (struct-end state transport))
-   (λ () (field-begin state transport))
+   (λ () (read-struct-begin state transport))
+   (λ () (read-struct-end state transport))
+   (λ () (read-field-begin state transport))
    (λ () (no-op-decoder "field-end"))
    (λ () (no-op-decoder "field-stop"))
-   (λ () (map-begin state transport))
+   (λ () (read-map-begin state transport))
    (λ () (no-op-decoder "map-end"))
-   (λ () (list-begin state transport))
+   (λ () (read-list-begin state transport))
    (λ () (no-op-decoder "list-end"))
-   (λ () (set-begin state transport))
+   (λ () (read-set-begin state transport))
    (λ () (no-op-decoder "set-end"))
    (λ () (read-boolean transport))
    (λ () (transport-read-byte transport))
@@ -167,7 +167,7 @@
     (raise (transport-not-open-input (current-continuation-marks))))
   (bytes->string/utf-8 (read-binary transport)))
 
-(define (message-begin state transport)
+(define (read-message-begin state transport)
   (unless (input-transport? transport)
     (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "message-begin")
@@ -188,7 +188,7 @@
   (log-thrift-debug "message name ~a, type ~s, sequence" msg-method-name msg-type msg-sequence-id)
   (message-header msg-method-name msg-type msg-sequence-id))
 
-(define (struct-begin state transport)
+(define (read-struct-begin state transport)
   (unless (input-transport? transport)
     (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "struct-begin")
@@ -196,7 +196,7 @@
   (set-compact-state-last-field-id! state (cons 0 (compact-state-last-field-id state)))
   unnamed)
 
-(define (struct-end state transport)
+(define (read-struct-end state transport)
   (unless (input-transport? transport)
     (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "struct-end")
@@ -204,7 +204,7 @@
   (set-compact-state-last-field-id! state (rest (compact-state-last-field-id state)))
   (void))
 
-(define (field-begin state transport)
+(define (read-field-begin state transport)
   (unless (input-transport? transport)
     (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "field-begin")
@@ -232,7 +232,7 @@
                        field-id field-type (integer->field-type field-type))
      (field-header unnamed field-type field-id)]))
        
-(define (map-begin state transport)
+(define (read-map-begin state transport)
   (unless (input-transport? transport)
     (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "map-begin")
@@ -242,7 +242,7 @@
   (define element-type (bitwise-bit-field head-byte 0 4))
   (map key-type element-type size))
 
-(define (list-begin state transport)
+(define (read-list-begin state transport)
   (unless (input-transport? transport)
     (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "list-begin")
@@ -257,11 +257,11 @@
                     size (integer->field-type element-type))
   (list-or-set element-type size))
 
-(define (set-begin state transport)
+(define (read-set-begin state transport)
   (unless (input-transport? transport)
     (raise (transport-not-open-input (current-continuation-marks))))
   (log-thrift-debug "set-begin")
-  (list-begin state transport))
+  (read-list-begin state transport))
 
 ;; ---------- Internal procedures
 
