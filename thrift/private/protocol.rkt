@@ -33,9 +33,9 @@
   (define bs (transport-read-bytes in width-in-bytes))
   (integer-bytes->integer bs #t #f 0 width-in-bytes))
 
-(define (write-plain-integer in width-in-bytes)
-  (unless (output-transport? in) (error "transport must be open for output"))
-  (define bs (integer->integer-bytes in width-in-bytes #t #f))
-  (transport-write-bytes bs))
+(define (write-plain-integer out num width-in-bytes)
+  (unless (output-transport? out) (error "transport must be open for output"))
+  (define bs (integer->integer-bytes num width-in-bytes #t #f))
+  (transport-write-bytes out bs))
   
 

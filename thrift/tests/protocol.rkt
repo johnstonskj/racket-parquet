@@ -10,6 +10,8 @@
 (require rackunit
          ; ---------
          thrift
+         thrift/protocol/binary
+         thrift/protocol/compact
          thrift/protocol/json
          thrift/protocol/sexpression
          thrift/transport/memory)
@@ -21,8 +23,10 @@
 ;; ---------- Test Cases
 
 (define encoding-tests
-  (hash make-json-encoder #"[1,\"mthod\",7,9,[\"str\",2,\"hello\",\"world\"],{1:{\"str\":\"simon\"},2:{\"i8\":48},3:{\"tf\":0}},[\"str\",\"i32\",0,{\"key\":\"value\"},{\"key2\":101},{\"202\":\"value?\"}]]"
-        make-sexpression-encoder #"#s(message-header \"mthod\" 7 9) #s(list-or-set 6 2) \"hello\" \"world\" #s(field-header \"name\" 6 1) \"simon\" #s(field-header \"age\" 1 2) 48 #s(field-header \"brilliant?\" 0 3) #f #s(map-header 6 3 0) \"key\" \"value\" \"key2\" 101 202 \"value?\" "))
+  (hash ;make-binary-encoder #""
+        ;make-compact-encoder #""
+        make-json-encoder #"[1,\"mthod\",7,9,[\"str\",2,\"hello\",\"world\"],{1:{\"str\":\"simon\"},2:{\"i8\":48},3:{\"tf\":0}},[\"str\",\"i32\",0,{\"key\":\"value\"},{\"key2\":101},{\"202\":\"value?\"}]]"
+        make-sexpression-encoder #"#s(protocol-header s-expression 1 #s(message-header \"mthod\" 7 9)) #s(list-or-set 6 2) \"hello\" \"world\" #s(field-header \"name\" 6 1) \"simon\" #s(field-header \"age\" 1 2) 48 #s(field-header \"brilliant?\" 0 3) #f #s(map-header 6 3 0) \"key\" \"value\" \"key2\" 101 202 \"value?\" "))
    
   
 (for ([(encoder results) encoding-tests])

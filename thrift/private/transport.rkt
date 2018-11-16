@@ -20,7 +20,7 @@
    source
    [port #:mutable]))
 
-(struct interceptor ())
+(struct interceptor () #:transparent)
 
 ; allows for interception and routing of read functions in transport/common.
 (struct read-interceptor interceptor
@@ -28,14 +28,14 @@
    read-bytes
    read
    size
-   position))
+   position) #:transparent)
 
 ; allows for interception and routing of write functions in transport/common.
 (struct write-interceptor interceptor
   (write-byte
    write-bytes
    write
-   flush))
+   flush) #:transparent)
 
 ; a wrapped function includes the wrapped port and an interceptor (or #f).
 (struct wrapped-transport transport

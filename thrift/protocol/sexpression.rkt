@@ -32,10 +32,15 @@
    type
    value) #:prefab)
 
+(struct protocol-header
+  (id
+   version
+   message-header) #:prefab)
+
 (define (make-sexpression-encoder transport)
   (encoder
    "s-expression"
-   (λ (header) (write-value transport header))
+   (λ (header) (write-message-begin transport header))
    (λ () (no-op-encoder "message-end"))
    (λ () (no-op-encoder "struct-begin"))
    (λ () (no-op-encoder "struct-end"))
@@ -60,12 +65,13 @@
 (define (make-sexpression-decoder transport)
   (decoder
    "s-expression"
-   (λ () (read-value transport message-header?))
+   (λ () (read-message-begin transport))
    (λ () (no-op-decoder "message-end"))
    (λ () (no-op-decoder "struct-begin"))
    (λ () (no-op-decoder "struct-end"))
    (λ () (read-value transport field-header?))
    (λ () (no-op-decoder "field-end"))
+   (λ () (no-op-decoder "field-stop"))
    (λ () (read-value transport map-header?))
    (λ () (no-op-decoder "map-end"))
    (λ () (read-value transport list-or-set?))
@@ -83,14 +89,34 @@
 
 ;; ---------- Internal procedures
 
-(define (write-value transport v)
-  (transport-write transport v)
-  (display " " (transport-port transport)))
+(define (write-message-begin tport msg)
+  (write-value tport (protocol-header 's-expression 1 msg)))
 
-(define (read-value transport type-predicate?)
-  (define v (transport-read transport))
+(define (read-message-begin tport)
+  (define header (read-value tport protocol-header?))
+  (when (not (equal? (protocol-header-id header) 's-expression))
+     (log-thrift-error "value ~s, invalid, expecting ~a"
+                       (protocol-header-id header) 's-expression)
+    (raise (invalid-protocol-id (current-continuation-marks) (protocol-header-id header))))
+  (when (not (equal? (protocol-header-version header) 1))
+     (log-thrift-error "value ~s, invalid, expecting ~a"
+                       (protocol-header-version header) 1)
+    (raise (invalid-protocol-version (current-continuation-marks) (protocol-header-version header))))
+  (when (not (message-header? (protocol-header-message-header header)))
+     (log-thrift-error "~s, invalid, expecting a message header"
+                       (protocol-header-message-header header))
+    (raise (decoding-error (current-continuation-marks) (protocol-header-message-header header))))
+  (protocol-header-message-header header))
+  
+(define (write-value tport v)
+  (transport-write tport v)
+  (display " " (transport-port tport)))
+
+(define (read-value tport type-predicate?)
+  (define v (transport-read tport))
   (cond
     [(type-predicate? v)
      v]
     [else
+     (log-thrift-error "~a not-a ~a" v type-predicate?)
      (raise (invalid-value-type (current-continuation-marks) v))]))
