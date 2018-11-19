@@ -25,7 +25,7 @@
 (define encoding-tests
   (hash make-binary-encoder #"\1\200\0\a\5\0\0\0mthod\t\0\0\0\v\2\0\0\0\5\0\0\0hello\5\0\0\0world\v\1\0\5\0\0\0simon\3\2\0000\2\3\0\0\v\b\0\0\0\0\3\0\0\0key\5\0\0\0value\4\0\0\0key2e\0\0\0\312\0\0\0\6\0\0\0value?"
         ;make-compact-encoder #""
-        make-json-encoder #"[1,\"mthod\",7,9,[\"str\",2,\"hello\",\"world\"],{1:{\"str\":\"simon\"},2:{\"i8\":48},3:{\"tf\":0}},[\"str\",\"i32\",0,{\"key\":\"value\"},{\"key2\":101},{\"202\":\"value?\"}]]"
+        make-json-encoder #"[1,\"mthod\",7,9,[\"str\",2,\"hello\",\"world\"],{\"1\":{\"str\":\"simon\"},\"2\":{\"i8\":48},\"3\":{\"tf\":false}},[\"str\",\"i32\",0,{\"key\":\"value\"},{\"key2\":101},{\"202\":\"value?\"}]]"
         make-sexpression-encoder #"#s(protocol-header s-expression 1 #s(message-header \"mthod\" 7 9)) #s(list-or-set 11 2) \"hello\" \"world\" #s(field-header \"name\" 11 1) \"simon\" #s(field-header \"age\" 3 2) 48 #s(field-header \"brilliant?\" 2 3) #f #s(map-header 11 8 0) \"key\" \"value\" \"key2\" 101 202 \"value?\" "))
    
   

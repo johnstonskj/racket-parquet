@@ -21,6 +21,7 @@
 
 (require racket/bool
          racket/format
+         racket/string
          thrift
          thrift/protocol/exn-common
          thrift/private/protocol
@@ -108,7 +109,7 @@
    (λ () (write-list-end transport state))
    (λ (header) (write-list-begin transport state header))
    (λ () (write-list-end transport state))
-   (λ (v) (write-number transport state (if (false? v) 0 1)))
+   (λ (v) (write-boolean transport state v))
    (λ (v) (write-number transport state v))
    (λ (v) (write-bytes transport state v))
    (λ (v) (write-number transport state v))
@@ -118,42 +119,44 @@
    (λ (v) (write-string transport state v))))
 
 (define (make-json-decoder transport)
+  (define state (json-state #f '()))
   (decoder
    "simple-json"
-   (λ () (no-op-decoder "message-begin"))
-   (λ () (no-op-decoder "message-end"))
-   (λ () (no-op-decoder "struct-begin"))
-   (λ () (no-op-decoder "struct-end"))
-   (λ () (no-op-decoder "field-begin"))
-   (λ () (no-op-decoder "field-end"))
-   (λ () (no-op-decoder "map-begin"))
-   (λ () (no-op-decoder "map-end"))
-   (λ () (no-op-decoder "list-begin"))
-   (λ () (no-op-decoder "list-end"))
-   (λ () (no-op-decoder "set-begin"))
-   (λ () (no-op-decoder "set-end"))
-   (λ () (no-op-decoder "boolean"))
-   (λ () (no-op-decoder "byte"))
+   (λ () (read-message-begin transport state))
+   (λ () (read-message-end transport state))
+   (λ () (read-struct-begin transport state))
+   (λ () (read-struct-end transport state))
+   (λ () (read-field-begin transport state))
+   (λ () (read-field-end transport state))
+   (λ () (no-op-decoder "field-stop"))
+   (λ () (read-map-begin transport state))
+   (λ () (read-map-end transport state))
+   (λ () (read-list-begin transport state))
+   (λ () (read-list-end transport state))
+   (λ () (read-list-begin transport state))
+   (λ () (read-list-end transport state))
+   (λ () (read-boolean transport state))
+   (λ () (read-number transport state))
    (λ () (no-op-decoder "bytes"))
-   (λ () (no-op-decoder "integer"))
-   (λ () (no-op-decoder "integer"))
-   (λ () (no-op-decoder "integer"))
+   (λ () (read-number transport state))
+   (λ () (read-number transport state))
+   (λ () (read-number transport state))
    (λ () (no-op-decoder "double"))
-   (λ () (no-op-decoder "string"))))
+   (λ () (read-string transport state))))
 
-;; ---------- Internal procedures
+;; ---------- Internal values/types
 
 (define json-protocol-version 1)
 
-(define json-array-begin #"[")
-(define json-array-end #"]")
+(define json-array-begin (char->integer #\[))
+(define json-array-end (char->integer #\]))
 
-(define json-object-begin #"{")
-(define json-object-end #"}")
+(define json-object-begin (char->integer #\{))
+(define json-object-end (char->integer #\}))
 
-(define json-space #" ")
-(define json-elem-sep #",")
-(define json-key-sep #":")
+(define json-space (char->integer #\space))
+(define json-elem-sep (char->integer #\,))
+(define json-key-sep (char->integer #\:))
 
 (define type-ident
   (hash type-bool #"\"tf\""
@@ -169,136 +172,400 @@
         type-list #"\"lst\""
         type-set #"\"set\""))
 
+(define type-ident/reverse
+  (for/hash ([(id str) type-ident])
+    (values (string-trim (bytes->string/utf-8 str) "\"") id)))
+
 (struct json-state
   ([prefix #:mutable]
    [in-map #:mutable]))
 
-(define (write-prefix transport state)
+;; ---------- Internal procedures read/write
+
+;; [<version>,"<name>",<type>,<sequence>, ...
+(define (write-message-begin tport state header)
+  (log-thrift-debug "json:write-message-begin")
+  (set-json-state-in-map! state (cons #f (json-state-in-map state)))
+  (transport-write-byte tport json-array-begin)
+  (set-json-state-prefix! state #f)
+  (write-number tport state json-protocol-version)
+  (write-string tport state (message-header-name header))
+  (write-number tport state (message-header-type header))
+  (write-number tport state (message-header-sequence-id header)))
+
+(define (read-message-begin tport state)
+  (log-thrift-debug "json:read-message-begin")
+  (set-json-state-in-map! state (cons #f (json-state-in-map state)))
+  (set-json-state-prefix! state #f)
+  (define array-begin (transport-read-byte tport))
+  (unless (equal? array-begin json-array-begin)
+    (raise (decoding-error (current-continuation-marks) 'array-begin array-begin)))
+  (define protocol-version (read-number tport state))
+  (unless (equal? protocol-version json-protocol-version)
+    (raise (invalid-protocol-version (current-continuation-marks) protocol-version)))
+  (define msg-name (read-string tport state))
+  (define msg-type (read-number tport state))
+  (define msg-sequence (read-number tport state))
+  (message-header msg-name msg-type msg-sequence))
+
+
+(define (write-message-end tport state)
+  (log-thrift-debug "json:write-message-end")
+  (transport-write-byte tport json-array-end))
+
+(define (read-message-end tport state)
+  (log-thrift-debug "json:read-message-end"))
+
+;; { ...
+(define (write-struct-begin tport state)
+  (log-thrift-debug "json:write-struct-begin")
+  (set-json-state-in-map! state (cons #f (json-state-in-map state)))
+  (write-prefix tport state)
+  (transport-write-byte tport json-object-begin)
+  (set-json-state-prefix! state #f))
+
+(define (read-struct-begin tport state)
+  (log-thrift-debug "json:read-struct-begin")
+  (set-json-state-in-map! state (cons #f (json-state-in-map state)))
+  (read-prefix tport state)
+  (read-byte/expecting tport json-object-begin)
+  (set-json-state-prefix! state #f))
+
+
+;; ... }
+(define (write-struct-end tport state)
+  (log-thrift-debug "json:write-struct-end")
+  (set-json-state-in-map! state (cdr (json-state-in-map state)))
+  (transport-write-byte tport json-object-end)
+  (write-ifmap-element-suffix tport state))
+
+(define (read-struct-end tport state)
+  (log-thrift-debug "json:read-struct-end")
+  (set-json-state-in-map! state (cdr (json-state-in-map state)))
+  (read-byte/expecting tport json-object-end))
+
+
+;; ["<key-type>","<element-type>",len, ...
+(define (write-map-begin tport state header)
+  (log-thrift-debug "json:write-map-begin")
+  (write-prefix tport state)
+  (set-json-state-prefix! state #f)
+  (transport-write-byte tport json-array-begin)
+  (write-bytes tport state (hash-ref type-ident (map-header-key-type header)))
+  (write-bytes tport state (hash-ref type-ident (map-header-element-type header)))
+  (write-number tport state (map-header-length header))
+  (set-json-state-in-map! state (cons 1 (json-state-in-map state))))
+
+(define (read-map-begin tport state)
+  (log-thrift-debug "json:read-map-begin")
+  (read-prefix tport state)
+  (read-byte/expecting tport json-array-begin)
+  (set-json-state-prefix! state #f)
+  (define key-type (read-string tport state))
+  (define element-type (read-string tport state))
+  (define map-length (read-number tport state))
+  (set-json-state-in-map! state (cons 1 (json-state-in-map state)))
+  (map-header (hash-ref type-ident/reverse key-type)
+              (hash-ref type-ident/reverse element-type)
+              map-length))
+
+;; ... ]
+(define (write-map-end tport state)
+  (log-thrift-debug "json:write-map-end")
+  (set-json-state-in-map! state (cdr (json-state-in-map state)))
+  (transport-write-byte tport json-array-end)
+  (write-ifmap-element-suffix tport state))
+
+(define (read-map-end tport state)
+  (log-thrift-debug "json:read-map-end")
+  (set-json-state-in-map! state (cdr (json-state-in-map state)))
+  (read-byte/expecting tport json-array-end))
+
+
+;; ["<element-type>",len, ...
+(define (write-list-begin tport state header)
+  (log-thrift-debug "json:write-list-begin")
+  (set-json-state-in-map! state (cons #f (json-state-in-map state)))
+  (write-prefix tport state)
+  (transport-write-byte tport json-array-begin)
+  (transport-write-bytes tport (hash-ref type-ident (list-or-set-element-type header)))
+  (write-number tport state (list-or-set-length header)))
+
+(define (read-list-begin tport state)
+  (log-thrift-debug "json:read-list-begin")
+  (set-json-state-in-map! state (cons #f (json-state-in-map state)))
+  (read-prefix tport state)
+  (read-byte/expecting tport json-array-begin)
+  (set-json-state-prefix! state #f)
+  (define element-type (read-string tport state))
+  (define list-length (read-number tport state))
+  (list-or-set (hash-ref type-ident/reverse element-type) list-length))
+
+
+;; ... ]
+(define (write-list-end tport state)
+  (log-thrift-debug "json:write-list-end")
+  (set-json-state-in-map! state (cdr (json-state-in-map state)))
+  (transport-write-byte tport json-array-end)
+  (write-ifmap-element-suffix tport state))
+
+(define (read-list-end tport state)
+  (log-thrift-debug "json:read-list-end")
+  (set-json-state-in-map! state (cdr (json-state-in-map state)))
+  (read-byte/expecting tport json-array-end)
+  (read-ifmap-element-suffix tport state))
+
+
+;; "<field-id>":{"<type>": ...
+(define (write-field-begin tport state header)
+  (log-thrift-debug "json:write-field-begin")
+  (write-prefix tport state)
+  (set-json-state-prefix! state #f)
+  (transport-write-bytes tport
+                         (string->bytes/utf-8 (format "\"~a\"" (field-header-id header))))
+  (transport-write-byte tport json-key-sep)
+  (transport-write-byte tport json-object-begin)
+  (transport-write-bytes tport (hash-ref type-ident (field-header-type header)))
+  (transport-write-byte tport json-key-sep)
+  (set-json-state-prefix! state #f))
+
+(define (read-field-begin tport state)
+  (log-thrift-debug "json:read-field-begin")
+  (define key (read-string tport state))
+  (skip-over tport json-key-sep)
+  (skip-over tport json-object-begin)
+  (set-json-state-prefix! state #f)
+  (define type (read-string tport state))
+  (skip-over tport json-key-sep)
+  (set-json-state-prefix! state #f)
+  (field-header "" (hash-ref type-ident/reverse type) (string->number key)))
+
+;; ... }
+(define (write-field-end tport state)
+  (log-thrift-debug "json:write-field-end")
+  (transport-write-byte tport json-object-end))
+
+(define (read-field-end tport state)
+  (log-thrift-debug "json:read-field-end")
+  (read-byte/expecting tport json-object-end))
+
+;; plain JSON boolean
+(define (write-boolean tport state bool)
+  (log-thrift-debug "json:write-boolean")
+  (write-prefix tport state)
+  (write-ifmap-element-prefix tport state)
+  (if (false? bool)
+      (transport-write-bytes tport #"false")
+      (transport-write-bytes tport #"true"))
+  (write-ifmap-element-sep tport state)
+  (write-ifmap-element-suffix tport state))
+
+(define (read-boolean tport state)
+  (log-thrift-debug "json:read-boolean")
+  (read-prefix tport state)
+  (read-ifmap-element-prefix transport state)
+  (define bool (read-atom tport))
+  (define result (cond
+                   [(bytes=? bool #"false") #f]
+                   [(bytes=? bool #"true") #t]
+                   [else
+                    (raise (decoding-error
+                            (current-continuation-marks)
+                            "boolean"
+                            bool))]))
+  (read-ifmap-element-sep transport state)
+  (read-ifmap-element-suffix transport state)
+  result)
+
+
+;; plain JSON number
+(define (write-number tport state num)
+  (log-thrift-debug "json:write-number")
+  (write-prefix tport state)
+  (define write-as-key (write-ifmap-element-prefix tport state))
+  (if write-as-key
+      (transport-write-bytes tport
+                             (string->bytes/utf-8 (format "\"~a\"" num)))
+      (transport-write-bytes tport
+                             (string->bytes/utf-8 (~a num))))
+  (write-ifmap-element-sep tport state)
+  (write-ifmap-element-suffix tport state))
+
+(define (read-number tport state)
+  (log-thrift-debug "json:read-number")
+  (read-prefix tport state)
+  (read-ifmap-element-prefix tport state)
+  (define atom (read-atom tport))
+  (define result (string->number (bytes->string/utf-8 atom)))
+  (read-ifmap-element-sep tport state)
+  (read-ifmap-element-suffix tport state)
+  result)
+
+
+;; ??
+(define (write-bytes tport state bs)
+  (log-thrift-debug "json:write-bytes")
+  (write-prefix tport state)
+  (write-ifmap-element-prefix tport state)
+  (transport-write-bytes tport bs)
+  (write-ifmap-element-sep tport state)
+  (write-ifmap-element-suffix tport state))
+
+;; plain JSON string
+(define (write-string tport state str)
+  (log-thrift-debug "json:write-string")
+  (write-prefix tport state)
+  (write-ifmap-element-prefix tport state)
+  (transport-write-bytes tport
+                         (string->bytes/utf-8 (~s str)))
+  (write-ifmap-element-sep tport state)
+  (write-ifmap-element-suffix tport state))
+
+(define (read-string tport state)
+  (log-thrift-debug "json:read-string")
+  (read-prefix tport state)
+  (read-ifmap-element-prefix tport state)
+  (define result (string-trim (bytes->string/utf-8 (read-atom tport)) "\""))
+  (read-ifmap-element-sep tport state)
+  (read-ifmap-element-suffix tport state)
+  result)
+
+;; base-64 encoded JSON string
+(define (write-binary tport state bytes)
+  (log-thrift-debug "json:write-binary")
+  (write-prefix tport state)
+  (write-ifmap-element-prefix tport state)
+  (write-string state bytes)
+  (write-ifmap-element-sep tport state)
+  (write-ifmap-element-suffix tport state))
+
+(define (read-atom tport)
+  (let next-byte ([bytestr #""]
+                   [a-byte (transport-peek tport)])
+    (cond
+      [(or (= a-byte json-elem-sep)
+           (= a-byte json-key-sep)
+           (= a-byte json-array-end)
+           (= a-byte json-object-end)
+           (eof-object? a-byte))
+       bytestr]
+      [else
+       (define another-byte (transport-read-byte tport))
+       (next-byte (bytes-append bytestr (bytes another-byte)) (transport-peek tport))])))
+
+;; ---------- Internal procedures read/write state
+
+(define (read-byte/expecting tport expecting)
+  (define value (transport-read-byte tport))
+  (unless (= value expecting)
+    (raise (decoding-error (current-continuation-marks)
+                           (integer->char expecting)
+                           (integer->char value)))))
+
+(define (write-prefix tport state)
+  ; write a "," as a prefix to an output value
+  ; depends on the current prefix state
   (cond
     [(false? (json-state-prefix state))
        (set-json-state-prefix! state #t)]
     [else
-     (transport-write-bytes transport json-elem-sep)]))
+     (transport-write-byte tport json-elem-sep)]))
 
-(define (write-ifmap-element-prefix transport state)
+(define (read-prefix tport state)
+  (cond
+    [(false? (json-state-prefix state))
+       (set-json-state-prefix! state #t)]
+    [else
+     (skip-over tport json-elem-sep)]))
+
+
+(define (write-ifmap-element-prefix tport state)
   (cond
     [(equal? (car (json-state-in-map state)) 1)
-     (transport-write-bytes transport json-object-begin)
+     (transport-write-byte tport json-object-begin)
      (set-json-state-prefix! state #f)
      #t]
     [else
      #f]))
 
-(define (write-ifmap-element-sep transport state)
+(define (read-ifmap-element-prefix tport state)
+  (cond
+    [(equal? (car (json-state-in-map state)) 1)
+     (read-byte/expecting tport json-object-begin)
+     (set-json-state-prefix! state #f)
+     #t]
+    [else
+     #f]))
+
+
+(define (write-ifmap-element-sep tport state)
   (when (equal? (car (json-state-in-map state)) 1)
-    (transport-write-bytes transport json-key-sep)
+    (transport-write-byte tport json-key-sep)
     (set-json-state-in-map! state
                             (cons 2 (cdr (json-state-in-map state))))
     (set-json-state-prefix! state #f)))
 
-(define (write-ifmap-element-suffix transport state)
+(define (read-ifmap-element-sep tport state)
+  (when (equal? (car (json-state-in-map state)) 1)
+    (read-byte/expecting tport json-key-sep)
+    (set-json-state-in-map! state
+                            (cons 2 (cdr (json-state-in-map state))))
+    (set-json-state-prefix! state #f)))
+
+
+(define (write-ifmap-element-suffix tport state)
   (define in-map-state (json-state-in-map state))
   (cond
     [(equal? (car in-map-state) 3)
      (set-json-state-in-map! state
                              (cons 1 (cdr (json-state-in-map state))))
-     (transport-write-bytes transport json-object-end)]
+     (transport-write-byte tport json-object-end)]
     [(number? (car in-map-state))
      (set-json-state-in-map! state
                              (cons (add1 (car in-map-state))
                                    (cdr in-map-state)))]))
 
-(define (write-message-begin transport state header)
-  (set-json-state-in-map! state (cons #f (json-state-in-map state)))
-  (transport-write-bytes transport json-array-begin)
-  (set-json-state-prefix! state #f)
-  (write-number transport state json-protocol-version)
-  (write-string transport state (message-header-name header))
-  (write-number transport state (message-header-type header))
-  (write-number transport state (message-header-sequence-id header)))
+(define (read-ifmap-element-suffix tport state)
+  (define in-map-state (json-state-in-map state))
+  (cond
+    [(equal? (car in-map-state) 3)
+     (set-json-state-in-map! state
+                             (cons 1 (cdr (json-state-in-map state))))
+     (read-byte/expecting tport json-object-end)]
+    [(number? (car in-map-state))
+     (set-json-state-in-map! state
+                             (cons (add1 (car in-map-state))
+                                   (cdr in-map-state)))]))
 
-(define (write-message-end transport state)
-  (transport-write-bytes transport json-array-end))
+;; ---------- Internal procedures skip characters
 
-(define (write-struct-begin transport state)
-  (set-json-state-in-map! state (cons #f (json-state-in-map state)))
-  (write-prefix transport state)
-  (transport-write-bytes transport json-object-begin)
-  (set-json-state-prefix! state #f))
+(define (skip-over tport skip-char [and-spaces #t])
+  (define result (skip-to tport skip-char))
+  (cond
+    [(equal? result #t)
+     (transport-read-byte tport)
+     (when (equal? and-spaces #t)
+       (skip-spaces tport))]
+    [else result]))
 
-(define (write-struct-end transport state)
-  (set-json-state-in-map! state (cdr (json-state-in-map state)))
-  (transport-write-bytes transport json-object-end)
-  (write-ifmap-element-suffix transport state))
-
-(define (write-map-begin transport state header)
-  (write-prefix transport state)
-  (set-json-state-prefix! state #f)
-  (transport-write-bytes transport json-array-begin)
-  (write-bytes transport state (hash-ref type-ident (map-header-key-type header)))
-  (write-bytes transport state (hash-ref type-ident (map-header-element-type header)))
-  (write-number transport state (map-header-length header))
-  (set-json-state-in-map! state (cons 1 (json-state-in-map state))))
-
-(define (write-map-end transport state)
-  (set-json-state-in-map! state (cdr (json-state-in-map state)))
-  (transport-write-bytes transport json-array-end)
-  (write-ifmap-element-suffix transport state))
-
-(define (write-list-begin transport state header)
-  (set-json-state-in-map! state (cons #f (json-state-in-map state)))
-  (write-prefix transport state)
-  (transport-write-bytes transport json-array-begin)
-  (transport-write-bytes transport (hash-ref type-ident (list-or-set-element-type header)))
-  (write-number transport state (list-or-set-length header)))
-
-(define (write-list-end transport state)
-  (set-json-state-in-map! state (cdr (json-state-in-map state)))
-  (transport-write-bytes transport json-array-end)
-  (write-ifmap-element-suffix transport state))
-
-(define (write-field-begin transport state header)
-  (write-prefix transport state)
-  (set-json-state-prefix! state #f)
-  (write-number transport state (field-header-id header))
-  (transport-write-bytes transport json-key-sep)
-  (transport-write-bytes transport json-object-begin)
-  (transport-write-bytes transport (hash-ref type-ident (field-header-type header)))
-  (transport-write-bytes transport json-key-sep)
-  (set-json-state-prefix! state #f))
-
-(define (write-field-end transport state)
-  (transport-write-bytes transport json-object-end))
-
-(define (write-number transport state num)
-  (write-prefix transport state)
-  (define write-as-key (write-ifmap-element-prefix transport state))
-  (if write-as-key
-      (transport-write-bytes transport
-                             (string->bytes/utf-8 (format "\"~a\"" num)))
-      (transport-write-bytes transport
-                             (string->bytes/utf-8 (~a num))))
-  (write-ifmap-element-sep transport state)
-  (write-ifmap-element-suffix transport state))
-
-(define (write-bytes transport state bs)
-  (write-prefix transport state)
-  (write-ifmap-element-prefix transport state)
-  (transport-write-bytes transport bs)
-  (write-ifmap-element-sep transport state)
-  (write-ifmap-element-suffix transport state))
-
-(define (write-string transport state str)
-  (write-prefix transport state)
-  (write-ifmap-element-prefix transport state)
-  (transport-write-bytes transport
-                         (string->bytes/utf-8 (~s str)))
-  (write-ifmap-element-sep transport state)
-  (write-ifmap-element-suffix transport state))
-
-(define (write-binary transport state bytes)
-  (write-prefix transport state)
-  (write-ifmap-element-prefix transport state)
-  (write-string state bytes)
-  (write-ifmap-element-sep transport state)
-  (write-ifmap-element-suffix transport state))
+(define (skip-spaces tport)
+  (let next-char ([peeked (transport-peek tport)])
+    (cond
+      [(equal? peeked json-space)
+       (transport-read-byte tport)
+       (next-char (transport-peek tport))]
+      [(eof-object? peeked)
+       eof]
+      [else
+       #t])))
+  
+(define (skip-to tport skip-char)
+  (let next-char ([peeked (transport-peek tport)])
+    (cond
+      [(equal? peeked skip-char)
+       #t]
+      [(eof-object? peeked)
+       eof]
+      [else
+       (transport-read-byte tport)
+       (next-char (transport-peek tport))])))

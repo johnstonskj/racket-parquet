@@ -22,11 +22,11 @@
 (define (wrong-method-name c v)
   (exn:thrift:protocol (format "missing, or wrong, method name: ~a" v) c 3))
 
-(define (encoding-error c v)
-  (exn:thrift:protocol (format "invalid value/type when encoding: ~a" v) c 7))
+(define (encoding-error c n v)
+  (exn:thrift:protocol (format "invalid value/type when encoding ~a: ~a" n v) c 7))
 
-(define (decoding-error c v)
-  (exn:thrift:protocol (format "invalid value/type when decoding: ~a" v) c 7))
+(define (decoding-error c n v)
+  (exn:thrift:protocol (format "invalid value/type when decoding ~a: ~a" n v) c 7))
 
 (define (number-too-large c v)
   (exn:thrift:protocol (format "number greater than expected size in bits: ~a" v) c 7))

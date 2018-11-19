@@ -28,7 +28,8 @@
    read-bytes
    read
    size
-   position) #:transparent)
+   position
+   peek) #:transparent)
 
 ; allows for interception and routing of write functions in transport/common.
 (struct write-interceptor interceptor

@@ -20,6 +20,9 @@
   [transport-port
    (-> transport? port?)]
 
+  [transport-peek
+   (-> transport? byte?)]
+  
   [transport-read-byte
    (-> transport? byte?)]
   
@@ -107,6 +110,12 @@
         new-pos])]
     [else eof]))
 
+(define (transport-peek tport)
+  (define actual (get-wrapped-func tport 5))
+  (if (false? actual)
+      (peek-byte (transport-port tport))
+      (actual tport)))
+  
 (define (transport-write-byte tport b)
   (define actual (get-wrapped-func tport 0))
   (if (false? actual)

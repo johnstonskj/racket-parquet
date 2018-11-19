@@ -52,7 +52,8 @@
     buffered-read-bytes
     buffered-read
     #f
-    #f)
+    #f
+    buffered-peek)
    (buffered-read-length)
    0))
 
@@ -79,7 +80,8 @@
     buffered-read-bytes
     buffered-read
     buffered-size
-    #f)
+    #f
+    buffered-peek)
    0 0))
 
 (define (open-output-framed-transport tport)
@@ -116,7 +118,7 @@
 (define (buffered-size tport)
   (transport-size (private:wrapped-transport-wrapped tport)))
 
-(define (transport-read-position tport [new-pos #f])
+(define (buffered-read-position tport [new-pos #f])
   ;; TODO: need to override transport-read-position?
   (cond
     [(false? new-pos)
@@ -133,6 +135,15 @@
        [(> new-pos buffer-end)
         (error "not implemented")])])
   (eof))
+
+(define (buffered-peek tport)
+  (define next-byte (peek-byte (transport-port tport)))
+  (cond
+    [(eof-object? next-byte)
+     (read-buffer tport)
+     (peek-byte (transport-port tport))]
+    [else
+     next-byte]))
 
 (define (read-buffer tport)
   (log-thrift-debug (format "read-buffer (~a)" (transport-source tport)))
@@ -153,12 +164,13 @@
 (define (buffered-flush tport)
   (close-output-port (transport-port tport))
   (define bytes (get-output-bytes (transport-port tport)))
-  (cond
-    [(equal? (transport-source tport) 'write-buffered)
-     (transport-write-bytes (private:wrapped-transport-wrapped tport) bytes)]
-    [(equal? (transport-source tport) 'write-framed)
-     (write-plain-integer (private:wrapped-transport-wrapped tport) (bytes-length bytes) 4)
-     (transport-write-bytes (private:wrapped-transport-wrapped tport) bytes)]
-    [else (error "buffered-flush: unexpected transport: " (transport-source tport))])
-  (flush-output (transport-port (private:wrapped-transport-wrapped tport)))
+  (when (> (bytes-length bytes) 0)
+    (cond
+      [(equal? (transport-source tport) 'write-buffered)
+       (transport-write-bytes (private:wrapped-transport-wrapped tport) bytes)]
+      [(equal? (transport-source tport) 'write-framed)
+       (write-plain-integer (private:wrapped-transport-wrapped tport) (bytes-length bytes) 4)
+       (transport-write-bytes (private:wrapped-transport-wrapped tport) bytes)]
+      [else (error "buffered-flush: unexpected transport: " (transport-source tport))])
+    (flush-output (transport-port (private:wrapped-transport-wrapped tport))))
   (private:set-transport-port! tport (open-output-bytes)))

@@ -36,6 +36,12 @@ Support for Thrift transports
 TBD
 }
 
+@defproc[(transport-peek
+          [t transport?])
+         byte?]{
+TBD
+}
+  
 @defproc[(transport-read-byte
           [t transport?])
          byte?]{
