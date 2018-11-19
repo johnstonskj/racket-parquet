@@ -86,21 +86,24 @@
   ((decoder-struct-begin pin))
 
   (define fld-1 ((decoder-field-begin pin)))
-;  (check-equal? (field-header-name fld-1) "")
+  (check-true (or (equal? (field-header-name fld-1) "")
+                  (equal? (field-header-name fld-1) "name")))
   (check-equal? (field-header-type fld-1) type-string)
   (check-equal? (field-header-id fld-1) 1)
   (check-equal? ((decoder-string pin)) "simon")
   ((decoder-field-end pin))
   
   (define fld-2 ((decoder-field-begin pin)))
-;  (check-equal? (field-header-name fld-2) "")
+  (check-true (or (equal? (field-header-name fld-2) "")
+                  (equal? (field-header-name fld-2) "age")))
   (check-equal? (field-header-type fld-2) type-byte)
   (check-equal? (field-header-id fld-2) 2)
   (check-equal? ((decoder-byte pin)) 48)
   ((decoder-field-end pin))
   
   (define fld-3 ((decoder-field-begin pin)))
-;  (check-equal? (field-header-name fld-3) "")
+  (check-true (or (equal? (field-header-name fld-3) "")
+                  (equal? (field-header-name fld-3) "brilliant?")))
   (check-equal? (field-header-type fld-3) type-bool)
   (check-equal? (field-header-id fld-3) 3)
   (check-equal? ((decoder-boolean pin)) #f)
@@ -130,15 +133,17 @@
   (list (list "binary" make-binary-encoder make-binary-decoder)
         ;(list "compact" make-compact-encoder make-compact-decoder)
         ;(list "json" make-json-encoder make-json-decoder)
-        (list "s-expression" make-sexpression-encoder make-sexpression-decoder)))
+        (list "s-expression" make-sexpression-encoder make-sexpression-decoder)
+        ))
 
 (define transport-wrappers
   (list (list "none" #f #f)
-        (list "buffered" open-output-buffered-transport open-input-buffered-transport)))
-        ;(list "framed" open-output-framed-transport open-input-framed-transport)))
+        (list "buffered" open-output-buffered-transport open-input-buffered-transport)
+        (list "framed" open-output-framed-transport open-input-framed-transport)))
 
 (for* ([protocol protocols] [transport transport-wrappers])
-  (test-case
-   (format "simple test of ~a protocol over memory transport, with wrapper ~a"
-           (first protocol) (first transport))
+  (define test-name (format "simple test of ~a protocol over memory transport, with wrapper ~a"
+                            (first protocol) (first transport)))
+  (test-case test-name
+   (displayln test-name)
    (apply test-write-then-read (append (rest protocol) (rest transport)))))

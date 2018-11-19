@@ -65,10 +65,10 @@
  (contract-out
   
   [make-compact-encoder
-   (-> transport? (or/c encoder? #f))]
+   (-> output-transport? (or/c encoder? #f))]
   
   [make-compact-decoder
-   (-> transport? (or/c decoder? #f))]))
+   (-> input-transport? (or/c decoder? #f))]))
 
 ;; ---------- Requirements
 
@@ -105,21 +105,45 @@
    structure))
 
 (struct compact-state
-  ([last-field-id #:mutable]))
+  ([last-field-id #:mutable]
+   [last-boolean-value #:mutable]))
 
 ;; ---------- Implementation
 
 (define (make-compact-encoder transport)
-  #f)
+  (define state (compact-state '() #f))
+  (encoder
+   "compact"
+   (λ (msg) (write-message-begin state transport msg))
+   (λ () (no-op-decoder "message-end"))
+   (λ () (write-struct-begin state))
+   (λ () (write-struct-end state))
+   (λ (fld) (write-field-begin state transport fld))
+   (λ () (no-op-decoder "field-end"))
+   (λ () (no-op-decoder "field-stop"))
+   (λ (map) (write-map-begin state transport map))
+   (λ () (no-op-decoder "map-end"))
+   (λ (lst) (write-list-begin state transport lst))
+   (λ () (no-op-decoder "list-end"))
+   (λ (set) (write-set-begin state transport set))
+   (λ () (no-op-decoder "set-end"))
+   (λ (v) (no-op-decoder "write-boolean"))
+   (λ (v) (transport-write-byte transport v))
+   (λ (v) (write-binary transport v))
+   (λ (v) (write-integer transport v 16))
+   (λ (v) (write-integer transport v 32))
+   (λ (v) (write-integer transport v 64))
+   (λ (v) (write-double transport v))
+   (λ (v) (write-string transport v))))
 
 (define (make-compact-decoder transport)
-  (define state (compact-state '()))
+  (define state (compact-state '() #f))
   (decoder
    "compact"
    (λ () (read-message-begin state transport))
    (λ () (no-op-decoder "message-end"))
-   (λ () (read-struct-begin state transport))
-   (λ () (read-struct-end state transport))
+   (λ () (read-struct-begin state))
+   (λ () (read-struct-end state))
    (λ () (read-field-begin state transport))
    (λ () (no-op-decoder "field-end"))
    (λ () (no-op-decoder "field-stop"))
@@ -129,7 +153,7 @@
    (λ () (no-op-decoder "list-end"))
    (λ () (read-set-begin state transport))
    (λ () (no-op-decoder "set-end"))
-   (λ () (read-boolean transport))
+   (λ () (read-boolean state transport))
    (λ () (transport-read-byte transport))
    (λ () (read-binary transport))
    (λ () (read-integer transport 16))
@@ -138,77 +162,99 @@
    (λ () (read-double transport))
    (λ () (read-string transport))))
 
-(define (read-boolean transport)
-  (unless (input-transport? transport)
-    (raise (transport-not-open-input (current-continuation-marks))))
-  (transport-read-byte transport))
+(define (read-boolean state tport)
+  (compact-state-last-boolean-value state))
 
-(define (read-integer transport width)
-  (unless (input-transport? transport) (raise transport-not-open-input))
-  (define integer (zigzag->integer (read-varint transport)))
+(define (write-integer tport integer width)
+  (when (<= (integer-length integer) width)
+    (raise (number-too-large (current-continuation-marks) integer)))
+  (write-varint tport (integer->zigzag integer)))
+
+(define (read-integer tport width)
+  (define integer (zigzag->integer (read-varint tport)))
   (cond
     [(<= (integer-length integer) width)
      integer]
-    [else (number-too-large (current-continuation-marks) integer)]))
+    [else (raise (number-too-large (current-continuation-marks) integer))]))
 
-(define (read-double in)
-  (unless (input-transport? transport) 
-    (raise (transport-not-open-input (current-continuation-marks))))
-  (->fl (read-plain-integer  transport 8)))
+(define (write-double tport double)
+  (write-plain-integer tport (fl->exact-integer double) 8))
 
-(define (read-binary transport)
-  (unless (input-transport? transport)
-    (raise (transport-not-open-input (current-continuation-marks))))
-  (define byte-length (read-varint transport))
-  (transport-read-bytes transport byte-length))
+(define (read-double tport)
+  (->fl (read-plain-integer tport 8)))
 
+(define (write-binary tport bytes)
+  (write-varint tport (bytes-length bytes))
+  (transport-write-bytes tport bytes))
+  
+(define (read-binary tport)
+  (define byte-length (read-varint tport))
+  (transport-read-bytes tport byte-length))
+
+(define (write-string tport str)
+  (write-binary tport (string->bytes/utf-8 str)))
+  
 (define (read-string transport)
-  (unless (input-transport? transport)
-    (raise (transport-not-open-input (current-continuation-marks))))
   (bytes->string/utf-8 (read-binary transport)))
 
-(define (read-message-begin state transport)
-  (unless (input-transport? transport)
-    (raise (transport-not-open-input (current-continuation-marks))))
+(define (write-message-begin state tport msg)
+  (transport-write-byte tport protocol-id)
+  (transport-write-byte tport (+ protocol-version
+                                 (arithmetic-shift (message-header-type msg) 5)))
+  (write-varint tport (message-header-sequence-id msg))
+  (write-string tport (message-header-name msg))
+  (void))
+
+(define (read-message-begin state tport)
   (log-thrift-debug "message-begin")
-  (define msg-protocol-id (transport-read-byte transport))
+  (define msg-protocol-id (transport-read-byte tport))
   (unless (= protocol-id msg-protocol-id)
     (raise (invalid-protocol-id (current-continuation-marks) msg-protocol-id)))
-  (define msg-type-version (transport-read-byte transport))
+  (define msg-type-version (transport-read-byte tport))
   (define msg-type (bitwise-and (arithmetic-shift msg-type-version -5) #b111))
   (unless (message-type? msg-type)
     (raise (invalid-message-type (current-continuation-marks)msg-type)))
   (define msg-version (bitwise-and msg-type-version #b11111))
-  (unless (= version msg-version)
+  (unless (= protocol-version msg-version)
     (raise invalid-protocol-version))
-  (define msg-sequence-id (read-varint transport))
-  (define msg-method-name (read-string transport))
+  (define msg-sequence-id (read-varint tport))
+  (define msg-method-name (read-string tport))
   (unless (= (string-length msg-method-name) 0)
     (raise wrong-method-name))
   (log-thrift-debug "message name ~a, type ~s, sequence" msg-method-name msg-type msg-sequence-id)
   (message-header msg-method-name msg-type msg-sequence-id))
 
-(define (read-struct-begin state transport)
-  (unless (input-transport? transport)
-    (raise (transport-not-open-input (current-continuation-marks))))
+(define (write-struct-begin state)
+  (void))
+
+(define (read-struct-begin state)
   (log-thrift-debug "struct-begin")
   ; push new tracking ID
   (set-compact-state-last-field-id! state (cons 0 (compact-state-last-field-id state)))
   unnamed)
 
-(define (read-struct-end state transport)
-  (unless (input-transport? transport)
-    (raise (transport-not-open-input (current-continuation-marks))))
+(define (write-struct-end state)
+  (void))
+
+(define (read-struct-end state)
   (log-thrift-debug "struct-end")
   ; pop the tracking ID
   (set-compact-state-last-field-id! state (rest (compact-state-last-field-id state)))
   (void))
 
-(define (read-field-begin state transport)
-  (unless (input-transport? transport)
-    (raise (transport-not-open-input (current-continuation-marks))))
+(define (write-field-begin state tport field)
+  (cond
+    [(equal? (field-header-type field) field-type-stop)
+     (transport-write-byte tport field-type-stop)]
+    [else
+     ; id-delta & type
+     ; field-id ?
+     (void)
+     ]))
+
+(define (read-field-begin state tport)
   (log-thrift-debug "field-begin")
-  (define head (transport-read-byte transport))
+  (define head (transport-read-byte tport))
   (cond
     [(= head field-type-stop)
      (log-thrift-debug "<< (field-stop)")
@@ -218,9 +264,14 @@
      (define field-type (bitwise-bit-field head 0 4))
      (log-thrift-debug (format ">> field header ~b -> ~b ~b"
                                head field-id-delta field-type))
+     (cond
+       [(= field-type field-type-boolean-true)
+        (set-compact-state-last-boolean-value! state #t)]
+       [(= field-type field-type-boolean-false)
+        (set-compact-state-last-boolean-value! state #f)])
      (define field-id (cond
                         [(= field-id-delta 0)
-                         (zigzag->integer (read-plain-integer transport 2))]
+                         (zigzag->integer (read-plain-integer tport 2))]
                         [else
                          (+ (first (compact-state-last-field-id state)) field-id-delta)]))
      (when (= field-id 0)
@@ -231,37 +282,42 @@
      (log-thrift-debug "<< structure field id ~a type ~a (~s)"
                        field-id field-type (integer->field-type field-type))
      (field-header unnamed field-type field-id)]))
-       
-(define (read-map-begin state transport)
-  (unless (input-transport? transport)
-    (raise (transport-not-open-input (current-continuation-marks))))
+
+(define (write-map-begin state tport map)
+  (write-varint tport (map-header-length map))
+  ; key-type & element-type
+  (transport-write-byte tport 0))
+
+(define (read-map-begin state tport)
   (log-thrift-debug "map-begin")
-  (define size (read-varint  transport))
-  (define head-byte (transport-read-byte transport))
+  (define size (read-varint  tport))
+  (define head-byte (transport-read-byte tport))
   (define key-type (bitwise-bit-field head-byte 4 8))
   (define element-type (bitwise-bit-field head-byte 0 4))
   (map key-type element-type size))
 
-(define (read-list-begin state transport)
-  (unless (input-transport? transport)
-    (raise (transport-not-open-input (current-continuation-marks))))
+(define (write-list-begin state tport lst)
+  (void))
+
+(define (read-list-begin state tport)
   (log-thrift-debug "list-begin")
-  (define first-byte (transport-read-byte transport))
+  (define first-byte (transport-read-byte tport))
   (define short-size (bitwise-bit-field first-byte 4 8))
   (define element-type (bitwise-bit-field first-byte 0 4))
   (define size (cond
                  [(= short-size 15)
-                  (read-varint transport)]
+                  (read-varint tport)]
                  [else short-size]))
   (log-thrift-debug "<< reading list, ~a elements, of type ~s"
                     size (integer->field-type element-type))
   (list-or-set element-type size))
 
-(define (read-set-begin state transport)
-  (unless (input-transport? transport)
-    (raise (transport-not-open-input (current-continuation-marks))))
+(define (write-set-begin state tport set)
+  (write-list-begin state tport set))
+
+(define (read-set-begin state tport)
   (log-thrift-debug "set-begin")
-  (read-list-begin state transport))
+  (read-list-begin state tport))
 
 ;; ---------- Internal procedures
 

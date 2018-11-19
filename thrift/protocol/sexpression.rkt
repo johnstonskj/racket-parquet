@@ -89,6 +89,8 @@
 
 ;; ---------- Internal procedures
 
+(define inter-expression-space #\space)
+
 (define (write-message-begin tport msg)
   (write-value tport (protocol-header 's-expression 1 msg)))
 
@@ -110,13 +112,19 @@
   
 (define (write-value tport v)
   (transport-write tport v)
-  (display " " (transport-port tport)))
+  (write-char inter-expression-space (transport-port tport)))
 
 (define (read-value tport type-predicate?)
   (define v (transport-read tport))
   (cond
     [(type-predicate? v)
-     v]
+     (define spacer (read-char (transport-port tport)))
+     (cond
+       [(equal? spacer inter-expression-space)
+        v]
+       [else
+        (log-thrift-error "unexpected spacer: ~a" spacer)
+        (raise (decoding-error (current-continuation-marks) spacer))])]
     [else
      (log-thrift-error "~a not-a ~a" v type-predicate?)
      (raise (invalid-value-type (current-continuation-marks) v))]))

@@ -30,7 +30,8 @@
 (require racket/bool
          thrift/transport/common
          thrift/private/protocol
-         (prefix-in private: thrift/private/transport))
+         (prefix-in private: thrift/private/transport)
+         thrift/private/logging)
 
 ;; ---------- Implementation
 
@@ -95,16 +96,19 @@
 ;; ---------- Internal procedures
 
 (define (buffered-read-byte tport)
+  (log-thrift-debug "buffered-read-byte")
   (when (eof-object? (peek-byte (transport-port tport)))
     (read-buffer tport))
   (read-byte (transport-port tport)))
   
 (define (buffered-read-bytes tport amt)
+  (log-thrift-debug "buffered-read-bytes")
   (when (eof-object? (peek-byte (transport-port tport)))
     (read-buffer tport))
   (read-bytes amt (transport-port tport)))
   
 (define (buffered-read tport)
+  (log-thrift-debug "buffered-read")
   (when (eof-object? (peek-byte (transport-port tport)))
     (read-buffer tport))
   (read (transport-port tport)))
@@ -131,6 +135,7 @@
   (eof))
 
 (define (read-buffer tport)
+  (log-thrift-debug (format "read-buffer (~a)" (transport-source tport)))
   (close-input-port (transport-port tport))
   (define read-length
     (cond
@@ -139,7 +144,9 @@
       [(equal? (transport-source tport) 'read-framed)
        (read-plain-integer (private:wrapped-transport-wrapped tport) 4)]
       [else (error "read-buffer: unexpected transport: " (transport-source tport))]))
+  (log-thrift-debug (format "read-buffer, reading ~a bytes" read-length))
   (define buffer (transport-read-bytes (private:wrapped-transport-wrapped tport) read-length))
+  (log-thrift-debug (format "~s" buffer))
   (set-buffered-transport-buffer-read! tport read-length)
   (private:set-transport-port! tport (open-input-bytes buffer)))
 
