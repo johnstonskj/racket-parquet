@@ -17,11 +17,14 @@
          thrift/protocol/json
          thrift/protocol/sexpression
          thrift/transport/buffered
-         thrift/transport/memory)
+         thrift/transport/memory
+         thrift/private/bytedebug)
 
 ;; ---------- Test Fixtures
 
-(define binary-data #"Racket is a general-purpose programming language as well as the world's first ecosystem for language-oriented programming")
+(define binary-data
+  (bytes-append #"Racket is a general-purpose programming language as well as "
+                #"the world's first ecosystem for language-oriented programming"))
 
 ;; ---------- Internal procedures
 
@@ -30,7 +33,7 @@
   (define tout (if (false? wrapper-out) traw-out (wrapper-out traw-out)))
   (define pout (encoder tout))
 
-  ((encoder-message-begin pout) (message-header "test" message-type-call 101))
+  ((encoder-message-begin pout) (message-header "test" message-type-call 42))
   (flush-transport tout)
   
   ((encoder-list-begin pout) (list-or-set type-string 2))
@@ -53,6 +56,8 @@
   ((encoder-field-begin pout) (field-header "brilliant?" type-bool 3))
   ((encoder-boolean pout) #f)
   ((encoder-field-end pout))
+
+  ((encoder-field-stop pout))
   
   ((encoder-struct-end pout))
   
@@ -70,7 +75,7 @@
   
   (close-transport tout)
   (define content (transport-output-bytes traw-out))
-  (writeln content)
+  (display (~bytes content))
   
   (define traw-in (open-input-memory-transport content))
   (define tin (if (false? wrapper-in) traw-in (wrapper-in traw-in)))
@@ -83,7 +88,7 @@
      (define msg ((decoder-message-begin pin)))
      (check-equal? (message-header-name msg) "test")
      (check-equal? (message-header-type msg) message-type-call)
-     (check-equal? (message-header-sequence-id msg) 101)
+     (check-equal? (message-header-sequence-id msg) 42)
      ((decoder-message-end pin))
 
      (define lst ((decoder-list-begin pin)))

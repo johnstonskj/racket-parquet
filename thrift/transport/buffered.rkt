@@ -35,6 +35,9 @@
 
 ;; ---------- Implementation
 
+(define max-frame-size 16384000)
+; Taken from https://github.com/apache/thrift/blob/master/doc/specs/thrift-rpc.md
+
 (define buffered-read-length (make-parameter 512))
 
 (struct buffered-transport private:wrapped-transport

@@ -127,8 +127,8 @@ Protocol} specification.
 @defmodule[thrift/protocol/compact]
 
 This protocol is described by the 
-@hyperlink["https://github.com/apache/thrift/blob/master/doc/specs/thrift-compact-protocol.md"]{Compact
-Protocol} specification.
+@hyperlink["https://github.com/apache/thrift/blob/master/doc/specs/thrift-compact-protocol.md"]{
+ Compact Protocol} specification.
 
 @defproc[(make-compact-encoder
           [t  transport?])
@@ -216,6 +216,19 @@ This protocol is intended as a more Racket friendly debug protocol.
          (or/c decoder? #f)]{
  TBD
 }
+
+@;{============================================================================}
+@section[]{Encoding Support}
+@defmodule[thrift/protocol/encoding]
+
+@defproc[(encode-exn
+          [e encoder?]
+          [exn exn:thrift?]
+          [reply-to (or/c message-header? #f)])
+         void?]{
+TBD
+}
+
 
 @;{============================================================================}
 @section[]{Decoding Support}

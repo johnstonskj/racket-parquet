@@ -46,6 +46,7 @@
    thrift/protocol/json
    thrift/protocol/multiplexed
    thrift/protocol/sexpression
+   thrift/protocol/encoding
    thrift/protocol/decoding
    
    thrift/transport/buffered

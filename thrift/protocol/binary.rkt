@@ -73,7 +73,6 @@
    (λ () (no-op-decoder "struct-end"))
    (λ () (read-field-begin transport))
    (λ () (no-op-decoder "field-end"))
-   (λ () (no-op-decoder "field-end"))
    (λ () (no-op-decoder "field-stop"))
    (λ () (read-map-begin transport))
    (λ () (no-op-decoder "map-end"))

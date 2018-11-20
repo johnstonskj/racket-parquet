@@ -104,6 +104,23 @@
    map
    structure))
 
+(define type-ident
+  (hash type-byte field-type-byte
+        type-int16 field-type-int16
+        type-int32 field-type-int32
+        type-int64 field-type-int64
+        type-double field-type-double
+        type-binary field-type-binary
+        type-list field-type-list
+        type-set field-type-set
+        type-map field-type-map
+        type-struct field-type-structure))
+
+(define type-ident/reverse
+  (hash-set* (for/hash ([(k v) type-ident]) (values v k))
+             field-type-boolean-true type-bool
+             field-type-boolean-false type-bool))
+
 (struct compact-state
   ([last-field-id #:mutable]
    [last-boolean-value #:mutable]))
@@ -162,12 +179,18 @@
    (λ () (read-double transport))
    (λ () (read-string transport))))
 
+(define (type->field-type v)
+  (hash-ref type-ident v))
+
+(define (field-type->type v)
+  (hash-ref type-ident/reverse v))
+
 (define (read-boolean state tport)
   (compact-state-last-boolean-value state))
 
 (define (write-integer tport integer width)
-  (when (<= (integer-length integer) width)
-    (raise (number-too-large (current-continuation-marks) integer)))
+  (when (> (integer-length integer) width)
+    (raise (number-too-large (current-continuation-marks) 909 integer)))
   (write-varint tport (integer->zigzag integer)))
 
 (define (read-integer tport width)
@@ -175,7 +198,7 @@
   (cond
     [(<= (integer-length integer) width)
      integer]
-    [else (raise (number-too-large (current-continuation-marks) integer))]))
+    [else (raise (number-too-large (current-continuation-marks) width integer))]))
 
 (define (write-double tport double)
   (write-plain-integer tport (fl->exact-integer double) 8))
@@ -199,8 +222,8 @@
 
 (define (write-message-begin state tport msg)
   (transport-write-byte tport protocol-id)
-  (transport-write-byte tport (+ protocol-version
-                                 (arithmetic-shift (message-header-type msg) 5)))
+  (transport-write-byte tport (bitwise-ior protocol-version
+                                           (arithmetic-shift (message-header-type msg) 5)))
   (write-varint tport (message-header-sequence-id msg))
   (write-string tport (message-header-name msg))
   (void))
@@ -213,14 +236,14 @@
   (define msg-type-version (transport-read-byte tport))
   (define msg-type (bitwise-and (arithmetic-shift msg-type-version -5) #b111))
   (unless (message-type? msg-type)
-    (raise (invalid-message-type (current-continuation-marks)msg-type)))
+    (raise (invalid-message-type (current-continuation-marks) msg-type)))
   (define msg-version (bitwise-and msg-type-version #b11111))
   (unless (= protocol-version msg-version)
     (raise invalid-protocol-version))
   (define msg-sequence-id (read-varint tport))
   (define msg-method-name (read-string tport))
-  (unless (= (string-length msg-method-name) 0)
-    (raise wrong-method-name))
+  (unless (> (string-length msg-method-name) 0)
+    (raise (wrong-method-name (current-continuation-marks) msg-method-name)))
   (log-thrift-debug "message name ~a, type ~s, sequence" msg-method-name msg-type msg-sequence-id)
   (message-header msg-method-name msg-type msg-sequence-id))
 
@@ -268,7 +291,9 @@
        [(= field-type field-type-boolean-true)
         (set-compact-state-last-boolean-value! state #t)]
        [(= field-type field-type-boolean-false)
-        (set-compact-state-last-boolean-value! state #f)])
+        (set-compact-state-last-boolean-value! state #f)]
+       [else
+        (set-compact-state-last-boolean-value! state 'no-value)])
      (define field-id (cond
                         [(= field-id-delta 0)
                          (zigzag->integer (read-plain-integer tport 2))]
@@ -281,7 +306,7 @@
       (cons field-id (rest (compact-state-last-field-id state))))
      (log-thrift-debug "<< structure field id ~a type ~a (~s)"
                        field-id field-type (integer->field-type field-type))
-     (field-header unnamed field-type field-id)]))
+     (field-header unnamed (field-type->type field-type) field-id)]))
 
 (define (write-map-begin state tport map)
   (write-varint tport (map-header-length map))
@@ -294,7 +319,7 @@
   (define head-byte (transport-read-byte tport))
   (define key-type (bitwise-bit-field head-byte 4 8))
   (define element-type (bitwise-bit-field head-byte 0 4))
-  (map key-type element-type size))
+  (map (field-type->type key-type) (field-type->type element-type) size))
 
 (define (write-list-begin state tport lst)
   (void))
@@ -327,7 +352,7 @@
      (bitwise-xor (arithmetic-shift n 1) (arithmetic-shift n -31))]
     [(< (integer-length n) 64)
      (bitwise-xor (arithmetic-shift n 1) (arithmetic-shift n -63))]
-    [else (raise (number-too-large (current-continuation-marks) n))]))
+    [else (raise (number-too-large (current-continuation-marks) 64 n))]))
 
 (define (zigzag->integer z)
   (bitwise-xor (arithmetic-shift z -1) (- (bitwise-and z 1))))

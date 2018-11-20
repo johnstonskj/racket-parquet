@@ -37,3 +37,5 @@
    unsupported-client-type))
 
 (define field-stop-value 0)
+
+(define max-list-length 2147483647)
