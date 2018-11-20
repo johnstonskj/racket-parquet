@@ -28,8 +28,8 @@
 (define (decoding-error c n v)
   (exn:thrift:protocol (format "invalid value/type when decoding ~a: ~a" n v) c 7))
 
-(define (number-too-large c v)
-  (exn:thrift:protocol (format "number greater than expected size in bits: ~a" v) c 7))
+(define (number-too-large c w v)
+  (exn:thrift:protocol (format "number greater than expected size (~a) in bits: ~a" w v) c 7))
 
 (define (number-negative c v)
   (exn:thrift:protocol (format "cannot 7bit encode negative numbers: ~a" v) c 7))
