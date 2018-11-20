@@ -15,8 +15,3 @@
 (define-logger thrift)
 
 (current-logger thrift-logger)
-
-(define (~b v) (format "~b" v))
-
-(define (~bs bs) (map ~b (bytes->list bs)))
-
