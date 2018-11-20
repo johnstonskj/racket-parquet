@@ -21,6 +21,8 @@
 
 ;; ---------- Test Fixtures
 
+(define binary-data #"Racket is a general-purpose programming language as well as the world's first ecosystem for language-oriented programming")
+
 ;; ---------- Internal procedures
 
 (define (test-write-then-read encoder decoder wrapper-out wrapper-in)
@@ -36,6 +38,8 @@
   ((encoder-string pout) "world")
   ((encoder-list-end pout))
 
+  ((encoder-bytes pout) binary-data)
+  
   ((encoder-struct-begin pout))
 
   ((encoder-field-begin pout) (field-header "name" type-string 1))
@@ -81,13 +85,16 @@
      (check-equal? (message-header-type msg) message-type-call)
      (check-equal? (message-header-sequence-id msg) 101)
      ((decoder-message-end pin))
-     
+
      (define lst ((decoder-list-begin pin)))
      (check-equal? (list-or-set-element-type lst) type-string)
      (check-equal? (list-or-set-length lst) 2)
      (check-equal? ((decoder-string pin)) "hello")
      (check-equal? ((decoder-string pin)) "world")
      ((decoder-list-end pin))
+     
+     (define binary ((decoder-bytes pin)))
+     (check-equal? binary binary-data)
      
      ((decoder-struct-begin pin))
      

@@ -22,6 +22,7 @@
 (require racket/bool
          racket/format
          racket/string
+         net/base64
          thrift
          thrift/protocol/exn-common
          thrift/private/protocol
@@ -111,7 +112,7 @@
    (λ () (write-list-end transport state))
    (λ (v) (write-boolean transport state v))
    (λ (v) (write-number transport state v))
-   (λ (v) (write-bytes transport state v))
+   (λ (v) (write-binary transport state v))
    (λ (v) (write-number transport state v))
    (λ (v) (write-number transport state v))
    (λ (v) (write-number transport state v))
@@ -137,7 +138,7 @@
    (λ () (read-list-end transport state))
    (λ () (read-boolean transport state))
    (λ () (read-number transport state))
-   (λ () (no-op-decoder "bytes"))
+   (λ () (read-binary transport state))
    (λ () (read-number transport state))
    (λ () (read-number transport state))
    (λ () (read-number transport state))
@@ -157,6 +158,8 @@
 (define json-space (char->integer #\space))
 (define json-elem-sep (char->integer #\,))
 (define json-key-sep (char->integer #\:))
+
+(define json-double-quote (char->integer #\"))
 
 (define type-ident
   (hash type-bool #"\"tf\""
@@ -251,8 +254,10 @@
   (write-prefix tport state)
   (set-json-state-prefix! state #f)
   (transport-write-byte tport json-array-begin)
-  (write-bytes tport state (hash-ref type-ident (map-header-key-type header)))
-  (write-bytes tport state (hash-ref type-ident (map-header-element-type header)))
+  (transport-write-bytes tport (hash-ref type-ident (map-header-key-type header)))
+  (transport-write-byte tport json-elem-sep)
+  (transport-write-bytes tport (hash-ref type-ident (map-header-element-type header)))
+  (transport-write-byte tport json-elem-sep)
   (write-number tport state (map-header-length header))
   (set-json-state-in-map! state (cons 1 (json-state-in-map state))))
 
@@ -402,15 +407,6 @@
   result)
 
 
-;; ??
-(define (write-bytes tport state bs)
-  (log-thrift-debug "json:write-bytes")
-  (write-prefix tport state)
-  (write-ifmap-element-prefix tport state)
-  (transport-write-bytes tport bs)
-  (write-ifmap-element-sep tport state)
-  (write-ifmap-element-suffix tport state))
-
 ;; plain JSON string
 (define (write-string tport state str)
   (log-thrift-debug "json:write-string")
@@ -435,9 +431,30 @@
   (log-thrift-debug "json:write-binary")
   (write-prefix tport state)
   (write-ifmap-element-prefix tport state)
-  (write-string state bytes)
+  (transport-write-byte tport json-double-quote)
+  (transport-write-bytes tport (base64-encode bytes ""))
+  (transport-write-byte tport json-double-quote)
   (write-ifmap-element-sep tport state)
   (write-ifmap-element-suffix tport state))
+
+(define (read-binary tport state)
+  (log-thrift-debug "json:read-binary")
+  (read-prefix tport state)
+  (read-ifmap-element-prefix tport state)
+  (read-byte/expecting tport json-double-quote)
+  (define bytes-read
+    (let next-byte ([bytestr #""] [a-byte (transport-peek tport)])
+      (cond
+        [(= a-byte json-double-quote)
+         bytestr]
+        [else
+         (define another-byte (transport-read-byte tport))
+         (next-byte (bytes-append bytestr (bytes another-byte)) (transport-peek tport))])))
+  (define result (base64-decode bytes-read))
+  (read-byte/expecting tport json-double-quote)
+  (write-ifmap-element-sep tport state)
+  (write-ifmap-element-suffix tport state)
+  result)
 
 (define (read-atom tport)
   (let next-byte ([bytestr #""]
