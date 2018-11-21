@@ -33,7 +33,8 @@
 
 ;; ---------- Internal types/values
 
-(define protocol-version #b1000000000000001)
+(define *protocol*
+  (protocol-id "binary" 0 #b1000000000000001))
 
 (define unnamed "")
 
@@ -41,10 +42,10 @@
 
 (define (make-binary-encoder transport)
   (encoder
-   "binary"
+   (protocol-id-string *protocol*)
    (λ (msg) (write-message-begin transport msg))
    (λ () (no-op-decoder "message-end"))
-   (λ () (no-op-decoder "struct-begin"))
+   (λ (name) (no-op-decoder "struct-begin"))
    (λ () (no-op-decoder "struct-end"))
    (λ (fld) (write-field-begin transport fld))
    (λ () (no-op-decoder "field-end"))
@@ -66,7 +67,7 @@
 
 (define (make-binary-decoder transport)
   (decoder
-   "binary"
+   (protocol-id-string *protocol*)
    (λ () (read-message-begin transport))
    (λ () (no-op-decoder "message-end"))
    (λ () (no-op-decoder "struct-begin"))
@@ -99,11 +100,13 @@
 (define (read-boolean tport)
   (if (= (transport-read-byte tport) 0) #f #t))
 
+
 (define (write-double tport v)
   (write-plain-integer tport (fl->exact-integer v) 8))
 
 (define (read-double tport)
   (->fl (read-plain-integer tport 8)))
+
 
 (define (write-binary tport bytes)
   (write-plain-integer tport (bytes-length bytes) 4)
@@ -113,25 +116,27 @@
   (define byte-length (read-plain-integer tport 4))
   (transport-read-bytes tport byte-length))
 
+
 (define (write-string tport str)
   (write-binary tport (string->bytes/utf-8 str)))
   
 (define (read-string tport)
   (bytes->string/utf-8 (read-binary tport)))
 
-(define (write-message-begin tport msg)
-  (log-thrift-debug "write-message-begin")
-  (write-plain-integer tport protocol-version 2 #f)
+
+(define (write-message-begin tport header)
+  (log-thrift-debug "~a:write-message-begin: ~a" (protocol-id-string *protocol*) header)
+  (write-plain-integer tport (protocol-id-version *protocol*) 2 #f)
   (transport-write-byte tport 0)
-  (transport-write-byte tport (bitwise-and (message-header-type msg) #b111))
-  (write-string tport (message-header-name msg))
-  (write-plain-integer tport (message-header-sequence-id msg) 4))
+  (transport-write-byte tport (bitwise-and (message-header-type header) #b111))
+  (write-string tport (message-header-name header))
+  (write-plain-integer tport (message-header-sequence-id header) 4))
 
 (define (read-message-begin tport)
-  (log-thrift-debug "read-message-begin")
+  (log-thrift-debug "~a:read-message-begin" (protocol-id-string *protocol*))
 
   (define msg-version (read-plain-integer tport 2 #f))
-  (unless (= protocol-version msg-version)
+  (unless (= msg-version (protocol-id-version *protocol*))
     (raise (invalid-protocol-version (current-continuation-marks) msg-version)))
 
   (transport-read-byte tport) ;; ignored
@@ -149,17 +154,18 @@
                     msg-method-name msg-type msg-sequence-id)
   (message-header msg-method-name msg-type msg-sequence-id))
 
-(define (write-field-begin tport field)
-  (log-thrift-debug "write-field-begin")
+
+(define (write-field-begin tport header)
+  (log-thrift-debug "~a:write-field-begin: ~a" (protocol-id-string *protocol*) header)
   (cond
-    [(equal? (field-header-type field) type-stop)
+    [(equal? (field-header-type header) type-stop)
      (transport-write-byte tport type-stop)]
     [else
-     (transport-write-byte tport (field-header-type field))
-     (write-plain-integer tport (field-header-id field) 2)]))
+     (transport-write-byte tport (field-header-type header))
+     (write-plain-integer tport (field-header-id header) 2)]))
 
 (define (read-field-begin tport)
-  (log-thrift-debug "field-begin")
+  (log-thrift-debug "~a:field-begin" (protocol-id-string *protocol*))
   (define field-type (transport-read-byte tport))
   (cond
     [(= field-type type-stop)
@@ -171,36 +177,39 @@
                        field-id field-type (integer->type field-type))
      (field-header unnamed field-type field-id)]))
 
-(define (write-map-begin tport map)
-  (log-thrift-debug "write-map-begin")
-  (transport-write-byte tport (map-header-key-type map))
-  (transport-write-byte tport (map-header-element-type map))
-  (write-plain-integer tport (map-header-length map) 4))
+
+(define (write-map-begin tport header)
+  (log-thrift-debug "~a:write-map-begin: ~a" (protocol-id-string *protocol*) header)
+  (transport-write-byte tport (map-header-key-type header))
+  (transport-write-byte tport (map-header-element-type header))
+  (write-plain-integer tport (map-header-length header) 4))
   
 (define (read-map-begin tport)
-  (log-thrift-debug "read-map-begin")
+  (log-thrift-debug "~a:read-map-begin" (protocol-id-string *protocol*))
   (define key-type (transport-read-byte tport))
   (define element-type (transport-read-byte tport))
   (define size (read-plain-integer tport 4))
   (map-header key-type element-type size))
 
+
 (define (write-list-begin tport lst)
-  (log-thrift-debug "write-list-begin")
+  (log-thrift-debug "~a:write-list-begin" (protocol-id-string *protocol*))
   (transport-write-byte tport (list-or-set-element-type lst))
   (write-plain-integer tport (list-or-set-length lst) 4))
 
 (define (read-list-begin tport)
-  (log-thrift-debug "read-list-begin")
+  (log-thrift-debug "~a:read-list-begin" (protocol-id-string *protocol*))
   (define element-type (transport-read-byte tport))
   (define size (read-plain-integer tport 4))
   (log-thrift-debug "<< reading list, ~a elements, of type ~s"
                     size (integer->type element-type))
   (list-or-set element-type size))
 
+
 (define (write-set-begin tport set)
-  (log-thrift-debug "write-set-begin")
+  (log-thrift-debug "~a:write-set-begin" (protocol-id-string *protocol*))
   (write-list-begin tport set))
   
 (define (read-set-begin tport)
-  (log-thrift-debug "read-set-begin")
+  (log-thrift-debug "~a:read-set-begin" (protocol-id-string *protocol*))
   (read-list-begin tport))

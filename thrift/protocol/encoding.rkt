@@ -41,7 +41,7 @@
         (message-header-sequence-id reply-to))]))
   ((encoder-message-begin pout) header)
 
-  ((encoder-struct-begin pout))
+  ((encoder-struct-begin pout) "exception")
 
   ((encoder-field-begin pout) (field-header "message" type-string 1))
   ((encoder-string pout) (exn-message exn))
@@ -74,6 +74,6 @@
 
   (close-transport tout)
   (check-equal? (transport-output-bytes tout)
-                (bytes-append #"#s(protocol-header s-expression 1 #s(message-header \"hello?\""
+                (bytes-append #"#s(protocol-header \"s-expression\" 1 #s(message-header \"hello?\""
                               #" 3 11)) #s(field-header \"message\" 11 1) \"missing, or wrong,"
                               #" method name: hello?\" #s(field-header \"type\" 8 2) 3 ")))

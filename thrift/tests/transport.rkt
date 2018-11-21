@@ -43,7 +43,7 @@
 
   ((encoder-bytes pout) binary-data)
   
-  ((encoder-struct-begin pout))
+  ((encoder-struct-begin pout) "person")
 
   ((encoder-field-begin pout) (field-header "name" type-string 1))
   ((encoder-string pout) "simon")
@@ -58,7 +58,6 @@
   ((encoder-field-end pout))
 
   ((encoder-field-stop pout))
-  
   ((encoder-struct-end pout))
   
   ((encoder-map-begin pout) (map-header type-string type-int32 3))
@@ -126,7 +125,8 @@
      (check-equal? (field-header-id fld-3) 3)
      (check-equal? ((decoder-boolean pin)) #f)
      ((decoder-field-end pin))
-     
+
+     ((decoder-field-stop pin))
      ((decoder-struct-end pin))
      
      (define a-map ((decoder-map-begin pin)))
@@ -149,16 +149,14 @@
 
 (define protocols
   (list (list "binary" make-binary-encoder make-binary-decoder)
-        ;(list "compact" make-compact-encoder make-compact-decoder)
+        (list "compact" make-compact-encoder make-compact-decoder)
         (list "json" make-json-encoder make-json-decoder)
-        (list "s-expression" make-sexpression-encoder make-sexpression-decoder)
-        ))
+        (list "s-expression" make-sexpression-encoder make-sexpression-decoder)))
 
 (define transport-wrappers
   (list (list "none" #f #f)
         (list "buffered" open-output-buffered-transport open-input-buffered-transport)
-        (list "framed" open-output-framed-transport open-input-framed-transport)
-        ))
+        (list "framed" open-output-framed-transport open-input-framed-transport)))
 
 (for* ([protocol protocols] [transport transport-wrappers])
   (define test-name (format "simple test of ~a protocol over memory transport, with wrapper ~a"

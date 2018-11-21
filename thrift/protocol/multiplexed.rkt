@@ -39,6 +39,9 @@
 
 ;; ---------- Implementation
 
+(define *protocol*
+  (protocol-id "multiplexed" 0 1))
+
 (define service-name-separator (make-parameter ":"))
 
 (struct mux-message-header message-header
@@ -46,10 +49,10 @@
 
 (define (make-multiplexed-encoder wrapped service-name)
   (encoder
-   "multiplexed"
+   (protocol-id-string *protocol*)
    (λ (header) (encode-mux-message-begin header wrapped service-name))
    (λ () ((encoder-message-end wrapped)))
-   (λ () ((encoder-struct-begin wrapped)))
+   (λ (name) ((encoder-struct-begin wrapped name)))
    (λ () ((encoder-struct-end wrapped)))
    (λ (header) ((encoder-field-begin wrapped) header))
    (λ () ((encoder-field-end wrapped)))
@@ -73,7 +76,7 @@
 
 (define (make-multiplexed-decoder wrapped service-name)
   (mux-decoder
-   "multiplexed"
+   (protocol-id-string *protocol*)
    (λ () (decode-mux-message-begin wrapped))
    (λ () ((decoder-message-end wrapped)))
    (λ () ((decoder-struct-begin wrapped)))
@@ -97,12 +100,14 @@
    (make-hash)))
 
 (define (register-service mux service-name service-processor)
+  (log-thrift-debug "multiplexed:register-service ~a ~a" service-name service-processor) 
   (unless (mux-decoder? mux)
     (error "provided value is not a multiplexed decoder"))
   (hash-set! (mux-decoder-service-registry mux) service-name service-processor)
   (void))
 
 (define (deregister-service mux service-name)
+  (log-thrift-debug "multiplexed:deregister-service ~a ~a" service-name) 
   (unless (mux-decoder? mux)
     (error "provided value is not a multiplexed decoder"))
   (hash-remove! (mux-decoder-service-registry mux) service-name)

@@ -23,6 +23,13 @@ Support for Thrift protocol encodings
 @section[]{Protocol Common}
 @defmodule[thrift/protocol/common]
 
+@defstruct*[protocol-id
+            ([string string?]
+             [numeric number?]
+             [version number?])]{
+TBD
+}
+
 @defstruct*[message-header
             ([name string?]
              [type type?]
@@ -54,7 +61,7 @@ TBD
            ([name string?]
             [message-begin (-> message-header? any/c)]
             [message-end (-> any/c)]
-            [struct-begin (-> any/c)]
+            [struct-begin (-> string? any/c)]
             [struct-end (-> any/c)]
             [field-begin (-> field-header any/c)]
             [field-end (-> any/c)]
@@ -80,7 +87,7 @@ TBD
            ([name string?]
             [message-begin (-> message-header?)]
             [message-end (-> void?)]
-            [struct-begin (-> void?)]
+            [struct-begin (-> string?)]
             [struct-end (-> void?)]
             [field-begin (-> field-header?)]
             [field-end (-> void?)]

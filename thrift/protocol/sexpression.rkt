@@ -20,12 +20,16 @@
 ;; ---------- Requirements
 
 (require thrift
+         thrift/protocol/common
          thrift/protocol/exn-common
          thrift/private/enumeration
          thrift/private/protocol
          thrift/private/logging)
 
 ;; ---------- Implementation
+
+(define *protocol*
+  (protocol-id "s-expression" 0 1))
 
 (struct s-value
   (index
@@ -39,10 +43,10 @@
 
 (define (make-sexpression-encoder transport)
   (encoder
-   "s-expression"
+   (protocol-id-string *protocol*)
    (λ (header) (write-message-begin transport header))
-   (λ () (no-op-encoder "message-end"))
-   (λ () (no-op-encoder "struct-begin"))
+   (λ () (no-op-encoder "message-end")) 
+   (λ (name) (no-op-encoder "struct-begin"))
    (λ () (no-op-encoder "struct-end"))
    (λ (header) (write-value transport header))
    (λ () (no-op-encoder "field-end"))
@@ -64,7 +68,7 @@
 
 (define (make-sexpression-decoder transport)
   (decoder
-   "s-expression"
+   (protocol-id-string *protocol*)
    (λ () (read-message-begin transport))
    (λ () (no-op-decoder "message-end"))
    (λ () (no-op-decoder "struct-begin"))
@@ -91,12 +95,17 @@
 
 (define inter-expression-space #\space)
 
-(define (write-message-begin tport msg)
-  (write-value tport (protocol-header 's-expression 1 msg)))
+(define (write-message-begin tport header)
+  (log-thrift-debug "~a:write-message-begin: ~a" (protocol-id-string *protocol*) header)
+  (write-value tport
+               (protocol-header (protocol-id-string *protocol*)
+                                (protocol-id-version *protocol*)
+                                header)))
 
 (define (read-message-begin tport)
+  (log-thrift-debug "~a:read-message-begin" (protocol-id-string *protocol*))
   (define header (read-value tport protocol-header?))
-  (when (not (equal? (protocol-header-id header) 's-expression))
+  (when (not (equal? (protocol-header-id header) (protocol-id-string *protocol*)))
      (log-thrift-error "value ~s, invalid, expecting ~a"
                        (protocol-header-id header) 's-expression)
     (raise (invalid-protocol-id (current-continuation-marks) (protocol-header-id header))))
@@ -111,10 +120,12 @@
   (protocol-header-message-header header))
   
 (define (write-value tport v)
+  (log-thrift-debug "~a:write-value: ~a" (protocol-id-string *protocol*) v)
   (transport-write tport v)
   (write-char inter-expression-space (transport-port tport)))
 
 (define (read-value tport type-predicate?)
+  (log-thrift-debug "~a:read-value" (protocol-id-string *protocol*))
   (define v (transport-read tport))
   (cond
     [(type-predicate? v)

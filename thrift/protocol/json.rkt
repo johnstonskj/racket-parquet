@@ -24,6 +24,7 @@
          racket/string
          net/base64
          thrift
+         thrift/protocol/common
          thrift/protocol/exn-common
          thrift/private/protocol
          thrift/private/logging)
@@ -92,14 +93,16 @@
 ; * consistency.
 ; *
 
+(define *protocol*
+  (protocol-id "simple-json" 0 1))
 
 (define (make-json-encoder transport)
   (define state (json-state #f '()))
   (encoder
-   "simple-json"
+   (protocol-id-string *protocol*)
    (λ (header) (write-message-begin transport state header))
    (λ () (write-message-end transport state))
-   (λ () (write-struct-begin transport state))
+   (λ (name) (write-struct-begin transport state name))
    (λ () (write-struct-end transport state))
    (λ (header) (write-field-begin transport state header))
    (λ () (write-field-end transport state))
@@ -122,7 +125,7 @@
 (define (make-json-decoder transport)
   (define state (json-state #f '()))
   (decoder
-   "simple-json"
+   (protocol-id-string *protocol*)
    (λ () (read-message-begin transport state))
    (λ () (read-message-end transport state))
    (λ () (read-struct-begin transport state))
@@ -146,8 +149,6 @@
    (λ () (read-string transport state))))
 
 ;; ---------- Internal values/types
-
-(define json-protocol-version 1)
 
 (define json-array-begin (char->integer #\[))
 (define json-array-end (char->integer #\]))
@@ -187,24 +188,24 @@
 
 ;; [<version>,"<name>",<type>,<sequence>, ...
 (define (write-message-begin tport state header)
-  (log-thrift-debug "json:write-message-begin")
+  (log-thrift-debug "~a:write-message-begin: ~a" (protocol-id-string *protocol*) header)
   (set-json-state-in-map! state (cons #f (json-state-in-map state)))
   (transport-write-byte tport json-array-begin)
   (set-json-state-prefix! state #f)
-  (write-number tport state json-protocol-version)
+  (write-number tport state (protocol-id-version *protocol*))
   (write-string tport state (message-header-name header))
   (write-number tport state (message-header-type header))
   (write-number tport state (message-header-sequence-id header)))
 
 (define (read-message-begin tport state)
-  (log-thrift-debug "json:read-message-begin")
+  (log-thrift-debug "~a:read-message-begin" (protocol-id-string *protocol*))
   (set-json-state-in-map! state (cons #f (json-state-in-map state)))
   (set-json-state-prefix! state #f)
   (define array-begin (transport-read-byte tport))
   (unless (equal? array-begin json-array-begin)
     (raise (decoding-error (current-continuation-marks) 'array-begin array-begin)))
   (define protocol-version (read-number tport state))
-  (unless (equal? protocol-version json-protocol-version)
+  (unless (equal? protocol-version (protocol-id-version *protocol*))
     (raise (invalid-protocol-version (current-continuation-marks) protocol-version)))
   (define msg-name (read-string tport state))
   (define msg-type (read-number tport state))
@@ -213,22 +214,22 @@
 
 
 (define (write-message-end tport state)
-  (log-thrift-debug "json:write-message-end")
+  (log-thrift-debug "~a:write-message-end" (protocol-id-string *protocol*))
   (transport-write-byte tport json-array-end))
 
 (define (read-message-end tport state)
-  (log-thrift-debug "json:read-message-end"))
+  (log-thrift-debug "~a:read-message-end" (protocol-id-string *protocol*)))
 
 ;; { ...
-(define (write-struct-begin tport state)
-  (log-thrift-debug "json:write-struct-begin")
+(define (write-struct-begin tport state name)
+  (log-thrift-debug "~a:write-struct-begin: ~a" (protocol-id-string *protocol*) name)
   (set-json-state-in-map! state (cons #f (json-state-in-map state)))
   (write-prefix tport state)
   (transport-write-byte tport json-object-begin)
   (set-json-state-prefix! state #f))
 
 (define (read-struct-begin tport state)
-  (log-thrift-debug "json:read-struct-begin")
+  (log-thrift-debug "~a:read-struct-begin" (protocol-id-string *protocol*))
   (set-json-state-in-map! state (cons #f (json-state-in-map state)))
   (read-prefix tport state)
   (read-byte/expecting tport json-object-begin)
@@ -237,20 +238,20 @@
 
 ;; ... }
 (define (write-struct-end tport state)
-  (log-thrift-debug "json:write-struct-end")
+  (log-thrift-debug "~a:write-struct-end" (protocol-id-string *protocol*))
   (set-json-state-in-map! state (cdr (json-state-in-map state)))
   (transport-write-byte tport json-object-end)
   (write-ifmap-element-suffix tport state))
 
 (define (read-struct-end tport state)
-  (log-thrift-debug "json:read-struct-end")
+  (log-thrift-debug "~a:read-struct-end" (protocol-id-string *protocol*))
   (set-json-state-in-map! state (cdr (json-state-in-map state)))
   (read-byte/expecting tport json-object-end))
 
 
 ;; ["<key-type>","<element-type>",len, ...
 (define (write-map-begin tport state header)
-  (log-thrift-debug "json:write-map-begin")
+  (log-thrift-debug "~a:write-map-begin: ~a" (protocol-id-string *protocol*) header)
   (write-prefix tport state)
   (set-json-state-prefix! state #f)
   (transport-write-byte tport json-array-begin)
@@ -262,7 +263,7 @@
   (set-json-state-in-map! state (cons 1 (json-state-in-map state))))
 
 (define (read-map-begin tport state)
-  (log-thrift-debug "json:read-map-begin")
+  (log-thrift-debug "~a:read-map-begin" (protocol-id-string *protocol*))
   (read-prefix tport state)
   (read-byte/expecting tport json-array-begin)
   (set-json-state-prefix! state #f)
@@ -276,20 +277,20 @@
 
 ;; ... ]
 (define (write-map-end tport state)
-  (log-thrift-debug "json:write-map-end")
+  (log-thrift-debug "~a:write-map-end" (protocol-id-string *protocol*))
   (set-json-state-in-map! state (cdr (json-state-in-map state)))
   (transport-write-byte tport json-array-end)
   (write-ifmap-element-suffix tport state))
 
 (define (read-map-end tport state)
-  (log-thrift-debug "json:read-map-end")
+  (log-thrift-debug "~a:read-map-end" (protocol-id-string *protocol*))
   (set-json-state-in-map! state (cdr (json-state-in-map state)))
   (read-byte/expecting tport json-array-end))
 
 
 ;; ["<element-type>",len, ...
 (define (write-list-begin tport state header)
-  (log-thrift-debug "json:write-list-begin")
+  (log-thrift-debug "~a:write-list-begin: ~a" (protocol-id-string *protocol*) header)
   (set-json-state-in-map! state (cons #f (json-state-in-map state)))
   (write-prefix tport state)
   (transport-write-byte tport json-array-begin)
@@ -297,7 +298,7 @@
   (write-number tport state (list-or-set-length header)))
 
 (define (read-list-begin tport state)
-  (log-thrift-debug "json:read-list-begin")
+  (log-thrift-debug ":read-list-begin" (protocol-id-string *protocol*))
   (set-json-state-in-map! state (cons #f (json-state-in-map state)))
   (read-prefix tport state)
   (read-byte/expecting tport json-array-begin)
@@ -309,13 +310,13 @@
 
 ;; ... ]
 (define (write-list-end tport state)
-  (log-thrift-debug "json:write-list-end")
+  (log-thrift-debug "~a:write-list-end" (protocol-id-string *protocol*))
   (set-json-state-in-map! state (cdr (json-state-in-map state)))
   (transport-write-byte tport json-array-end)
   (write-ifmap-element-suffix tport state))
 
 (define (read-list-end tport state)
-  (log-thrift-debug "json:read-list-end")
+  (log-thrift-debug "~a:read-list-end" (protocol-id-string *protocol*))
   (set-json-state-in-map! state (cdr (json-state-in-map state)))
   (read-byte/expecting tport json-array-end)
   (read-ifmap-element-suffix tport state))
@@ -323,7 +324,7 @@
 
 ;; "<field-id>":{"<type>": ...
 (define (write-field-begin tport state header)
-  (log-thrift-debug "json:write-field-begin")
+  (log-thrift-debug "~a:write-field-begin: ~a" (protocol-id-string *protocol*) header)
   (write-prefix tport state)
   (set-json-state-prefix! state #f)
   (transport-write-bytes tport
@@ -335,7 +336,7 @@
   (set-json-state-prefix! state #f))
 
 (define (read-field-begin tport state)
-  (log-thrift-debug "json:read-field-begin")
+  (log-thrift-debug "~a:read-field-begin" (protocol-id-string *protocol*))
   (define key (read-string tport state))
   (skip-over tport json-key-sep)
   (skip-over tport json-object-begin)
@@ -347,16 +348,16 @@
 
 ;; ... }
 (define (write-field-end tport state)
-  (log-thrift-debug "json:write-field-end")
+  (log-thrift-debug "~a:write-field-end" (protocol-id-string *protocol*))
   (transport-write-byte tport json-object-end))
 
 (define (read-field-end tport state)
-  (log-thrift-debug "json:read-field-end")
+  (log-thrift-debug "~a:read-field-end" (protocol-id-string *protocol*))
   (read-byte/expecting tport json-object-end))
 
 ;; plain JSON boolean
 (define (write-boolean tport state bool)
-  (log-thrift-debug "json:write-boolean")
+  (log-thrift-debug "~a:write-boolean: ~a" (protocol-id-string *protocol*) bool)
   (write-prefix tport state)
   (write-ifmap-element-prefix tport state)
   (if (false? bool)
@@ -366,7 +367,7 @@
   (write-ifmap-element-suffix tport state))
 
 (define (read-boolean tport state)
-  (log-thrift-debug "json:read-boolean")
+  (log-thrift-debug "~a:read-boolean" (protocol-id-string *protocol*))
   (read-prefix tport state)
   (read-ifmap-element-prefix transport state)
   (define bool (read-atom tport))
@@ -385,7 +386,7 @@
 
 ;; plain JSON number
 (define (write-number tport state num)
-  (log-thrift-debug "json:write-number")
+  (log-thrift-debug "~a:write-number: ~a" (protocol-id-string *protocol*) num)
   (write-prefix tport state)
   (define write-as-key (write-ifmap-element-prefix tport state))
   (if write-as-key
@@ -397,7 +398,7 @@
   (write-ifmap-element-suffix tport state))
 
 (define (read-number tport state)
-  (log-thrift-debug "json:read-number")
+  (log-thrift-debug "~a:read-number" (protocol-id-string *protocol*))
   (read-prefix tport state)
   (read-ifmap-element-prefix tport state)
   (define atom (read-atom tport))
@@ -409,7 +410,7 @@
 
 ;; plain JSON string
 (define (write-string tport state str)
-  (log-thrift-debug "json:write-string")
+  (log-thrift-debug "~a:write-string: ~a" (protocol-id-string *protocol*) str)
   (write-prefix tport state)
   (write-ifmap-element-prefix tport state)
   (transport-write-bytes tport
@@ -418,7 +419,7 @@
   (write-ifmap-element-suffix tport state))
 
 (define (read-string tport state)
-  (log-thrift-debug "json:read-string")
+  (log-thrift-debug "~a:read-string" (protocol-id-string *protocol*))
   (read-prefix tport state)
   (read-ifmap-element-prefix tport state)
   (define result (string-trim (bytes->string/utf-8 (read-atom tport)) "\""))
@@ -428,7 +429,7 @@
 
 ;; base-64 encoded JSON string
 (define (write-binary tport state bytes)
-  (log-thrift-debug "json:write-binary")
+  (log-thrift-debug "~a:write-binary" (protocol-id-string *protocol*))
   (write-prefix tport state)
   (write-ifmap-element-prefix tport state)
   (transport-write-byte tport json-double-quote)
@@ -438,7 +439,7 @@
   (write-ifmap-element-suffix tport state))
 
 (define (read-binary tport state)
-  (log-thrift-debug "json:read-binary")
+  (log-thrift-debug "~a:read-binary" (protocol-id-string *protocol*))
   (read-prefix tport state)
   (read-ifmap-element-prefix tport state)
   (read-byte/expecting tport json-double-quote)

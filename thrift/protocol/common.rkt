@@ -6,6 +6,7 @@
 ;; Copyright (c) 2018 Simon Johnston (johnstonskj@gmail.com).
 
 (provide
+ (struct-out protocol-id)
  (struct-out message-header)
  (struct-out field-header)
  (struct-out map-header)
@@ -14,6 +15,11 @@
  (struct-out decoder))
 
 ;; ---------- Implementation (Types)
+
+(struct protocol-id
+  (string
+   numeric
+   version) #:prefab)
 
 (struct message-header
   (name type sequence-id) #:prefab)
