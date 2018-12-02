@@ -215,7 +215,8 @@
 
 (define (write-message-end tport state)
   (log-thrift-debug "~a:write-message-end" (protocol-id-string *protocol*))
-  (transport-write-byte tport json-array-end))
+  (transport-write-byte tport json-array-end)
+  (flush-message-end tport))
 
 (define (read-message-end tport state)
   (log-thrift-debug "~a:read-message-end" (protocol-id-string *protocol*)))

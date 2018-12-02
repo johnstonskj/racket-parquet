@@ -11,6 +11,8 @@
 
  no-op-decoder
 
+ flush-message-end
+
  read-plain-integer
 
  write-plain-integer)
@@ -26,6 +28,9 @@
 
 (define (no-op-encoder name)
   (log-thrift-debug (symbol->string name)))
+
+(define (flush-message-end transport)
+  (flush-transport transport))
 
 (define (no-op-decoder name)
   (log-thrift-debug (symbol->string name)))

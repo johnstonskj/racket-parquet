@@ -13,6 +13,7 @@
 
 (define deps '(
   "base"
+  "http"
   "rackunit-lib"
   "racket-index"))
 (define build-deps '(

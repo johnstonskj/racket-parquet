@@ -23,10 +23,10 @@
 ;; ---------- Test Cases
 
 (define encoding-tests
-  (hash make-binary-encoder #"\1\200\0\a\5\0\0\0mthod\t\0\0\0\v\2\0\0\0\5\0\0\0hello\5\0\0\0world\v\1\0\5\0\0\0simon\3\2\0000\2\3\0\0\v\b\0\0\0\0\3\0\0\0key\5\0\0\0value\4\0\0\0key2e\0\0\0\312\0\0\0\6\0\0\0value?"
+  (hash make-binary-encoder #"\1\200\0\a\5\0\0\0mthod\t\0\0\0\v\1\0\5\0\0\0simon\3\2\0000\2\3\0\0\v\b\3\0\0\0\5\0\0\0firste\0\0\0\6\0\0\0secondf\0\0\0\5\0\0\0thirdg\0\0\0"
         ;make-compact-encoder #""
-        make-json-encoder #"[1,\"mthod\",7,9,[\"str\",2,\"hello\",\"world\"],{\"1\":{\"str\":\"simon\"},\"2\":{\"i8\":48},\"3\":{\"tf\":false}},[\"str\",\"i32\",0,{\"key\":\"value\"},{\"key2\":101},{\"202\":\"value?\"}]]"
-        make-sexpression-encoder #"#s(protocol-header \"s-expression\" 1 #s(message-header \"mthod\" 7 9)) #s(list-or-set 11 2) \"hello\" \"world\" #s(field-header \"name\" 11 1) \"simon\" #s(field-header \"age\" 3 2) 48 #s(field-header \"brilliant?\" 2 3) #f #s(map-header 11 8 0) \"key\" \"value\" \"key2\" 101 202 \"value?\" "))
+        make-json-encoder #"[1,\"mthod\",7,9,{\"1\":{\"str\":\"simon\"},\"2\":{\"i8\":48},\"3\":{\"tf\":false}},[\"str\",\"i32\",3,{\"first\":101},{\"second\":102},{\"third\":103}]]"
+        make-sexpression-encoder #"#s(protocol-header \"s-expression\" 1 #s(message-header \"mthod\" 7 9)) #s(field-header \"name\" 11 1) \"simon\" #s(field-header \"age\" 3 2) 48 #s(field-header \"brilliant?\" 2 3) #f #s(map-header 11 8 3) \"first\" 101 \"second\" 102 \"third\" 103 "))
    
   
 (for ([(encoder results) encoding-tests])
@@ -37,12 +37,7 @@
 
    ((encoder-message-begin p) (message-header "mthod" 7 9))
 
-   ((encoder-list-begin p) (list-or-set type-string 2))
-   ((encoder-string p) "hello")
-   ((encoder-string p) "world")
-   ((encoder-list-end p))
-
-   ((encoder-struct-begin p) "unused")
+   ((encoder-struct-begin p) "mthod_args")
 
    ((encoder-field-begin p) (field-header "name" type-string 1))
    ((encoder-string p) "simon")
@@ -58,16 +53,15 @@
 
    ((encoder-struct-end p))
 
-   ((encoder-map-begin p) (map-header type-string type-int32 0))
-   ((encoder-string p) "key")
-   ((encoder-string p) "value")
-   ((encoder-string p) "key2")
+   ((encoder-map-begin p) (map-header type-string type-int32 3))
+   ((encoder-string p) "first")
    ((encoder-int32 p) 101)
-   ((encoder-int32 p) 202)
-   ((encoder-string p) "value?")
+   ((encoder-string p) "second")
+   ((encoder-int32 p) 102)
+   ((encoder-string p) "third")
+   ((encoder-int32 p) 103)
    ((encoder-map-end p))
-
-
+ 
    ((encoder-message-end p))
 
    (define actual (transport-output-bytes t))

@@ -132,7 +132,7 @@
   (encoder
    (protocol-id-string *protocol*)
    (λ (msg) (write-message-begin state transport msg))
-   (λ () (no-op-decoder "message-end"))
+   (λ () (flush-message-end transport))
    (λ (name) (write-struct-begin state name))
    (λ () (write-struct-end state))
    (λ (fld) (write-field-begin state transport fld))

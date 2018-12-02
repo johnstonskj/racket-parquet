@@ -45,7 +45,7 @@
   (encoder
    (protocol-id-string *protocol*)
    (λ (header) (write-message-begin transport header))
-   (λ () (no-op-encoder "message-end")) 
+   (λ () (flush-message-end transport)) 
    (λ (name) (no-op-encoder "struct-begin"))
    (λ () (no-op-encoder "struct-end"))
    (λ (header) (write-value transport header))
@@ -100,7 +100,8 @@
   (write-value tport
                (protocol-header (protocol-id-string *protocol*)
                                 (protocol-id-version *protocol*)
-                                header)))
+                                header))
+  (flush-transport tport))
 
 (define (read-message-begin tport)
   (log-thrift-debug "~a:read-message-begin" (protocol-id-string *protocol*))

@@ -36,13 +36,6 @@
   ((encoder-message-begin pout) (message-header "test" message-type-call 42))
   (flush-transport tout)
   
-  ((encoder-list-begin pout) (list-or-set type-string 2))
-  ((encoder-string pout) "hello")
-  ((encoder-string pout) "world")
-  ((encoder-list-end pout))
-
-  ((encoder-bytes pout) binary-data)
-  
   ((encoder-struct-begin pout) "person")
 
   ((encoder-field-begin pout) (field-header "name" type-string 1))
@@ -90,16 +83,6 @@
      (check-equal? (message-header-sequence-id msg) 42)
      ((decoder-message-end pin))
 
-     (define lst ((decoder-list-begin pin)))
-     (check-equal? (list-or-set-element-type lst) type-string)
-     (check-equal? (list-or-set-length lst) 2)
-     (check-equal? ((decoder-string pin)) "hello")
-     (check-equal? ((decoder-string pin)) "world")
-     ((decoder-list-end pin))
-     
-     (define binary ((decoder-bytes pin)))
-     (check-equal? binary binary-data)
-     
      ((decoder-struct-begin pin))
      
      (define fld-1 ((decoder-field-begin pin)))

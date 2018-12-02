@@ -44,7 +44,7 @@
   (encoder
    (protocol-id-string *protocol*)
    (λ (msg) (write-message-begin transport msg))
-   (λ () (no-op-decoder "message-end"))
+   (λ () (flush-message-end transport))
    (λ (name) (no-op-decoder "struct-begin"))
    (λ () (no-op-decoder "struct-end"))
    (λ (fld) (write-field-begin transport fld))
