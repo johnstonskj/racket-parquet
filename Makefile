@@ -1,15 +1,14 @@
 PACKAGENAME=parquet
-COLLECTS=parquet thrift
-SCRBL=parquet/scribblings/$(PACKAGENAME).scrbl
+COLLECTS=parquet
+SCRBL=scribblings/$(PACKAGENAME).scrbl
 
 all: setup test
 
 clean:
 	find . -name compiled -type d | xargs rm -rf
 	find . -name "*~" -type f |xargs rm
-	rm -rf thrift/doc
-	rm -rf parquet/doc
-	rm -rf coverage
+	rm -rf ./doc
+	rm -rf ./coverage
 
 setup:
 	raco setup --tidy $(COLLECTS)
@@ -43,5 +42,5 @@ htmldocs: $(SCRBL)
 viewdocs:
 	raco docs
 
-thrift: parquet/format.rkt
-	rthrift -o parquet/generated -m parquet/generated parquet/format.rkt
+thrift: ./format.rkt
+	rthrift -o ./generated -m parquet/generated ./format.rkt

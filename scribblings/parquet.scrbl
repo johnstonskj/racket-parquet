@@ -18,6 +18,8 @@ framework; @italic{"for scalable cross-language services development"}. The
 support for this is described in @other-doc['(lib "thrift/scribblings/thrift.scrbl")
                                             #:indirect "Thrift collection"].
 
+@image["scribblings/parquet_logo.png"] 
+
 @table-of-contents[]
 
 @include-section["generated-parquet.scrbl"]
@@ -26,6 +28,4 @@ support for this is described in @other-doc['(lib "thrift/scribblings/thrift.scr
 
 @section{License}
 
-@verbatim|{|@file->string["../LICENSE"]}|
-
-@image["scribblings/parquet_logo.png"] 
+@verbatim|{|@file->string["LICENSE"]}|
