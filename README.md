@@ -10,7 +10,7 @@
 
 This package provides an implementation of basic read (write coming eventually) capabilities for Apache Parquet files. Parquet is a commonly used format in cloud-native systems, the Hadoop ecosystem and machine learning applications.
 
-[![Apache Parquet](https://raw.githubusercontent.com/johnstonskj/racket-parquet/master/parquet/scribblings/parquet_logo.png)](https://thrift.apache.org)
+[![Apache Parquet](https://raw.githubusercontent.com/johnstonskj/racket-parquet/master/scribblings/parquet_logo.png)](https://thrift.apache.org)
 
 ## Modules
 
